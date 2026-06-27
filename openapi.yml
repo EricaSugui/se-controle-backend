@@ -1,0 +1,2043 @@
+openapi: 3.0.3
+info:
+  title: SeControle - Controle Financeiro Familiar API
+  description: API para gerenciar transações, receitas, metas e cadastros de apoio do controle financeiro familiar.
+  version: "3.0.0"
+
+servers:
+  - url: http://localhost:3000
+    description: Ambiente local
+
+tags:
+  - name: Saúde
+  - name: Autenticação
+  - name: Pessoas
+  - name: Casas
+  - name: Casa Pessoas
+  - name: Categorias
+  - name: Formas de Pagamento
+  - name: Origens de Receita
+  - name: Cartões e Contas
+  - name: Transações
+  - name: Transação Pagadores
+  - name: Receitas
+  - name: Metas
+  - name: Percentual de Custeio
+  - name: Convites
+  - name: Dashboard
+  - name: Fechamento Mensal
+
+paths:
+  # -------------------------------------------------------------------
+  # Saúde
+  # -------------------------------------------------------------------
+  /health:
+    get:
+      tags: [Saúde]
+      summary: Verifica se a API está no ar
+      responses:
+        "200":
+          description: API funcionando
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  # -------------------------------------------------------------------
+  # Autenticação
+  # -------------------------------------------------------------------
+  /auth/me:
+    get:
+      tags: [Autenticação]
+      summary: Retorna a pessoa vinculada ao token atual
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dados da pessoa autenticada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pessoa"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/NaoVinculado"
+
+  /auth/vincular:
+    post:
+      tags: [Autenticação]
+      summary: Vincula o usuário Supabase a uma pessoa existente
+      description: >
+        Chamado uma única vez no primeiro acesso. Associa o supabase_user_id
+        (extraído do Bearer token) à pessoa informada. Falha se o usuário ou a
+        pessoa já estiver vinculado.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pessoa_id]
+              properties:
+                pessoa_id:
+                  type: integer
+                  example: 7
+      responses:
+        "200":
+          description: Pessoa atualizada com supabase_user_id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pessoa"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          description: Usuário ou pessoa já vinculados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  # -------------------------------------------------------------------
+  # Pessoas
+  # -------------------------------------------------------------------
+  /pessoas:
+    get:
+      tags: [Pessoas]
+      summary: Lista pessoas
+      parameters:
+        - $ref: "#/components/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de pessoas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pessoa"
+    post:
+      tags: [Pessoas]
+      summary: Cria uma pessoa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PessoaInput"
+      responses:
+        "201":
+          description: Pessoa criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pessoa"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  /pessoas/{id}:
+    get:
+      tags: [Pessoas]
+      summary: Busca uma pessoa pelo id
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Pessoa encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pessoa"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    put:
+      tags: [Pessoas]
+      summary: Atualiza uma pessoa
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PessoaInput"
+      responses:
+        "200":
+          description: Pessoa atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pessoa"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /pessoas/{id}/ativar:
+    patch:
+      tags: [Pessoas]
+      summary: Ativa uma pessoa
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Pessoa ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pessoa"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /pessoas/{id}/desativar:
+    patch:
+      tags: [Pessoas]
+      summary: Desativa uma pessoa
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Pessoa desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pessoa"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Casas
+  # -------------------------------------------------------------------
+  /casas:
+    get:
+      tags: [Casas]
+      summary: Lista casas
+      parameters:
+        - $ref: "#/components/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de casas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Casa"
+    post:
+      tags: [Casas]
+      summary: Cria uma casa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "201":
+          description: Casa criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Casa"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  /casas/{id}:
+    put:
+      tags: [Casas]
+      summary: Atualiza uma casa
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "200":
+          description: Casa atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Casa"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /casas/{id}/ativar:
+    patch:
+      tags: [Casas]
+      summary: Ativa uma casa
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Casa ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Casa"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /casas/{id}/desativar:
+    patch:
+      tags: [Casas]
+      summary: Desativa uma casa
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Casa desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Casa"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Casa Pessoas
+  # -------------------------------------------------------------------
+  /casas/{casaId}/pessoas:
+    get:
+      tags: [Casa Pessoas]
+      summary: Lista membros de uma casa
+      parameters:
+        - $ref: "#/components/parameters/CasaId"
+      responses:
+        "200":
+          description: Lista de membros com dados da pessoa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CasaPessoa"
+    post:
+      tags: [Casa Pessoas]
+      summary: Associa uma pessoa a uma casa
+      parameters:
+        - $ref: "#/components/parameters/CasaId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CasaPessoaInput"
+      responses:
+        "201":
+          description: Pessoa associada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CasaPessoa"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "409":
+          description: Pessoa já associada a esta casa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  /casas/{casaId}/pessoas/{pessoaId}/papel:
+    patch:
+      tags: [Casa Pessoas]
+      summary: Atualiza o papel de uma pessoa na casa
+      parameters:
+        - $ref: "#/components/parameters/CasaId"
+        - $ref: "#/components/parameters/PessoaId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [papel]
+              properties:
+                papel:
+                  type: string
+                  enum: [admin, membro]
+                  example: admin
+      responses:
+        "200":
+          description: Papel atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CasaPessoa"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /casas/{casaId}/pessoas/{pessoaId}:
+    delete:
+      tags: [Casa Pessoas]
+      summary: Remove a associação de uma pessoa a uma casa
+      parameters:
+        - $ref: "#/components/parameters/CasaId"
+        - $ref: "#/components/parameters/PessoaId"
+      responses:
+        "204":
+          description: Associação removida
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Percentual de Custeio
+  # -------------------------------------------------------------------
+  /casas/{casaId}/percentual-custeio:
+    get:
+      tags: [Percentual de Custeio]
+      summary: Consulta percentuais de custeio de uma casa
+      description: >
+        Retorna os registros de percentual de custeio da casa.
+        Filtrável por competencia e/ou pessoa_id.
+        Quando ambos são informados, retorna o registro exato daquela combinação (ou array vazio).
+      parameters:
+        - $ref: "#/components/parameters/CasaId"
+        - $ref: "#/components/parameters/CompetenciaFiltro"
+        - name: pessoa_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Lista de percentuais de custeio
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PercentualCusteio"
+    post:
+      tags: [Percentual de Custeio]
+      summary: Define o percentual de custeio de uma pessoa em uma casa para uma competência
+      description: >
+        Faz upsert: se já existe um registro para a combinação (casa, pessoa, competência),
+        atualiza o percentual. Caso contrário, cria um novo.
+      parameters:
+        - $ref: "#/components/parameters/CasaId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PercentualCusteioInput"
+      responses:
+        "201":
+          description: Percentual registrado ou atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PercentualCusteio"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  # -------------------------------------------------------------------
+  # Categorias
+  # -------------------------------------------------------------------
+  /categorias:
+    get:
+      tags: [Categorias]
+      summary: Lista categorias
+      parameters:
+        - $ref: "#/components/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de categorias
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Categoria"
+    post:
+      tags: [Categorias]
+      summary: Cria uma categoria
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "201":
+          description: Categoria criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Categoria"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  /categorias/{id}:
+    put:
+      tags: [Categorias]
+      summary: Atualiza uma categoria
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "200":
+          description: Categoria atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Categoria"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /categorias/{id}/ativar:
+    patch:
+      tags: [Categorias]
+      summary: Ativa uma categoria
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Categoria ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Categoria"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /categorias/{id}/desativar:
+    patch:
+      tags: [Categorias]
+      summary: Desativa uma categoria
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Categoria desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Categoria"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Formas de Pagamento
+  # -------------------------------------------------------------------
+  /formas-pagamento:
+    get:
+      tags: [Formas de Pagamento]
+      summary: Lista formas de pagamento
+      parameters:
+        - $ref: "#/components/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de formas de pagamento
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FormaPagamento"
+    post:
+      tags: [Formas de Pagamento]
+      summary: Cria uma forma de pagamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "201":
+          description: Forma de pagamento criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormaPagamento"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  /formas-pagamento/{id}:
+    put:
+      tags: [Formas de Pagamento]
+      summary: Atualiza uma forma de pagamento
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "200":
+          description: Forma de pagamento atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormaPagamento"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /formas-pagamento/{id}/ativar:
+    patch:
+      tags: [Formas de Pagamento]
+      summary: Ativa uma forma de pagamento
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Forma de pagamento ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormaPagamento"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /formas-pagamento/{id}/desativar:
+    patch:
+      tags: [Formas de Pagamento]
+      summary: Desativa uma forma de pagamento
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Forma de pagamento desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormaPagamento"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Origens de Receita
+  # -------------------------------------------------------------------
+  /origens-receita:
+    get:
+      tags: [Origens de Receita]
+      summary: Lista origens de receita
+      parameters:
+        - $ref: "#/components/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de origens de receita
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrigemReceita"
+    post:
+      tags: [Origens de Receita]
+      summary: Cria uma origem de receita
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "201":
+          description: Origem criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrigemReceita"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  /origens-receita/{id}:
+    put:
+      tags: [Origens de Receita]
+      summary: Atualiza uma origem de receita
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "200":
+          description: Origem atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrigemReceita"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /origens-receita/{id}/ativar:
+    patch:
+      tags: [Origens de Receita]
+      summary: Ativa uma origem de receita
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Origem ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrigemReceita"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /origens-receita/{id}/desativar:
+    patch:
+      tags: [Origens de Receita]
+      summary: Desativa uma origem de receita
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Origem desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrigemReceita"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Cartões e Contas
+  # -------------------------------------------------------------------
+  /cartoes-contas:
+    get:
+      tags: [Cartões e Contas]
+      summary: Lista cartões e contas
+      parameters:
+        - $ref: "#/components/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de cartões e contas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CartaoConta"
+    post:
+      tags: [Cartões e Contas]
+      summary: Cria um cartão ou conta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CartaoContaInput"
+      responses:
+        "201":
+          description: Cartão/conta criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartaoConta"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  /cartoes-contas/{id}:
+    put:
+      tags: [Cartões e Contas]
+      summary: Atualiza um cartão ou conta
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CartaoContaInput"
+      responses:
+        "200":
+          description: Cartão/conta atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartaoConta"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /cartoes-contas/{id}/ativar:
+    patch:
+      tags: [Cartões e Contas]
+      summary: Ativa um cartão ou conta
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Cartão/conta ativado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartaoConta"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /cartoes-contas/{id}/desativar:
+    patch:
+      tags: [Cartões e Contas]
+      summary: Desativa um cartão ou conta
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Cartão/conta desativado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartaoConta"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Transações
+  # -------------------------------------------------------------------
+  /transacoes:
+    get:
+      tags: [Transações]
+      summary: Lista transações
+      parameters:
+        - $ref: "#/components/parameters/CompetenciaFiltro"
+      responses:
+        "200":
+          description: Lista de transações
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transacao"
+    post:
+      tags: [Transações]
+      summary: Cria uma transação
+      description: >
+        Se forma_pagamento for "crédito parcelado" e total_parcelas > 1,
+        cria automaticamente uma transação por parcela nos meses seguintes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransacaoInput"
+      responses:
+        "201":
+          description: Transação criada (retorna a primeira parcela quando parcelado)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transacao"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  /transacoes/{id}:
+    get:
+      tags: [Transações]
+      summary: Busca uma transação pelo id
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Transação encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transacao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    put:
+      tags: [Transações]
+      summary: Atualiza uma transação
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransacaoInput"
+      responses:
+        "200":
+          description: Transação atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transacao"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    delete:
+      tags: [Transações]
+      summary: Remove uma transação
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Transação removida
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Transação Pagadores
+  # -------------------------------------------------------------------
+  /transacoes/{transacaoId}/pagadores:
+    get:
+      tags: [Transação Pagadores]
+      summary: Lista pagadores de uma transação
+      parameters:
+        - $ref: "#/components/parameters/TransacaoId"
+      responses:
+        "200":
+          description: Lista de pagadores com nome da pessoa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TransacaoPagador"
+    post:
+      tags: [Transação Pagadores]
+      summary: Adiciona um pagador a uma transação
+      parameters:
+        - $ref: "#/components/parameters/TransacaoId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransacaoPagadorInput"
+      responses:
+        "201":
+          description: Pagador adicionado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransacaoPagador"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "404":
+          description: Transação ou pessoa não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "409":
+          description: Pessoa já registrada como pagadora desta transação
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  /transacoes/{transacaoId}/pagadores/{pessoaId}:
+    patch:
+      tags: [Transação Pagadores]
+      summary: Atualiza o percentual de um pagador
+      parameters:
+        - $ref: "#/components/parameters/TransacaoId"
+        - $ref: "#/components/parameters/PessoaId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                percentual:
+                  type: number
+                  format: float
+                  nullable: true
+                  example: 60
+      responses:
+        "200":
+          description: Percentual atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransacaoPagador"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    delete:
+      tags: [Transação Pagadores]
+      summary: Remove um pagador de uma transação
+      parameters:
+        - $ref: "#/components/parameters/TransacaoId"
+        - $ref: "#/components/parameters/PessoaId"
+      responses:
+        "204":
+          description: Pagador removido
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Receitas
+  # -------------------------------------------------------------------
+  /receitas:
+    get:
+      tags: [Receitas]
+      summary: Lista receitas
+      parameters:
+        - $ref: "#/components/parameters/CompetenciaFiltro"
+      responses:
+        "200":
+          description: Lista de receitas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Receita"
+    post:
+      tags: [Receitas]
+      summary: Cria uma receita
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReceitaInput"
+      responses:
+        "201":
+          description: Receita criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Receita"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  /receitas/{id}:
+    get:
+      tags: [Receitas]
+      summary: Busca uma receita pelo id
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Receita encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Receita"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    put:
+      tags: [Receitas]
+      summary: Atualiza uma receita
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReceitaInput"
+      responses:
+        "200":
+          description: Receita atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Receita"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    delete:
+      tags: [Receitas]
+      summary: Remove uma receita
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Receita removida
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Metas
+  # -------------------------------------------------------------------
+  /metas:
+    get:
+      tags: [Metas]
+      summary: Lista metas
+      responses:
+        "200":
+          description: Lista de metas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Meta"
+    post:
+      tags: [Metas]
+      summary: Cria uma meta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetaInput"
+      responses:
+        "201":
+          description: Meta criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  /metas/{id}:
+    get:
+      tags: [Metas]
+      summary: Busca uma meta pelo id
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Meta encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meta"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    put:
+      tags: [Metas]
+      summary: Atualiza uma meta
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetaInput"
+      responses:
+        "200":
+          description: Meta atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    delete:
+      tags: [Metas]
+      summary: Remove uma meta
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Meta removida
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Convites
+  # -------------------------------------------------------------------
+  /convites:
+    get:
+      tags: [Convites]
+      summary: Lista convites
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pendente, aceito, expirado]
+          example: pendente
+        - name: email
+          in: query
+          required: false
+          schema:
+            type: string
+            format: email
+          example: convidado@email.com
+      responses:
+        "200":
+          description: Lista de convites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Convite"
+    post:
+      tags: [Convites]
+      summary: Cria um convite e envia email pelo Supabase
+      description: >
+        Salva o convite no banco e aciona o Supabase para enviar um email de convite
+        ao endereço informado. O link no email redireciona ao frontend com o token
+        do convite na query string e o access_token do Supabase no fragmento (#).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConviteInput"
+      responses:
+        "201":
+          description: Convite criado e email enviado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Convite"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  /convites/token/{token}:
+    get:
+      tags: [Convites]
+      summary: Busca um convite pelo token
+      parameters:
+        - $ref: "#/components/parameters/ConviteToken"
+      responses:
+        "200":
+          description: Convite encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Convite"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /convites/token/{token}/aceitar:
+    patch:
+      tags: [Convites]
+      summary: Aceita um convite — fluxo completo de cadastro
+      description: >
+        Valida o Bearer token do Supabase, confere se o email bate com o do convite,
+        cria a pessoa no banco, vincula o supabase_user_id, adiciona à casa_pessoas
+        (se o convite tiver casa_id) e marca o convite como aceito. Tudo em uma
+        transação atômica.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ConviteToken"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome:
+                  type: string
+                  description: Nome da pessoa. Se omitido, usa o prefixo do email.
+                  example: Marcela
+      responses:
+        "200":
+          description: Convite aceito — retorna a pessoa criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pessoa"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          description: Email do usuário não corresponde ao convite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          description: Convite já utilizado, expirado ou usuário já vinculado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  /convites/{id}:
+    get:
+      tags: [Convites]
+      summary: Busca um convite pelo id
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Convite encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Convite"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /convites/{id}/aceitar:
+    patch:
+      tags: [Convites]
+      summary: Marca um convite como aceito (uso administrativo)
+      description: >
+        Altera apenas o status do convite para "aceito", sem criar pessoa nem
+        acionar Supabase. Use para correções manuais.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Convite marcado como aceito
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Convite"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /convites/{id}/expirar:
+    patch:
+      tags: [Convites]
+      summary: Expira um convite pendente
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Convite expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Convite"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Dashboard
+  # -------------------------------------------------------------------
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Resumo financeiro de uma competência
+      description: >
+        Retorna o total de receitas, o total de gastos por casa (aplicando o percentual de
+        custeio cadastrado para aquela competência) e o saldo do mês.
+      parameters:
+        - name: competencia
+          in: query
+          required: true
+          description: "Competência no formato MES-AA (ex.: JUN-26)"
+          schema:
+            type: string
+            example: JUN-26
+      responses:
+        "200":
+          description: Resumo do dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+  # -------------------------------------------------------------------
+  # Fechamento Mensal
+  # -------------------------------------------------------------------
+  /fechamento-mensal:
+    get:
+      tags: [Fechamento Mensal]
+      summary: Resumo financeiro de várias competências
+      description: >
+        Retorna um resumo (igual ao do /dashboard) para cada competência no intervalo
+        informado, do mês "de" até o mês "ate", inclusive. Máximo de 60 meses.
+      parameters:
+        - name: de
+          in: query
+          required: true
+          description: "Competência inicial no formato MES-AA (ex.: JAN-26)"
+          schema:
+            type: string
+            example: JAN-26
+        - name: ate
+          in: query
+          required: true
+          description: "Competência final no formato MES-AA (ex.: DEZ-26)"
+          schema:
+            type: string
+            example: DEZ-26
+      responses:
+        "200":
+          description: Lista de resumos mensais, um por competência no intervalo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Dashboard"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT emitido pelo Supabase Auth após login
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      example: 1
+
+    CasaId:
+      name: casaId
+      in: path
+      required: true
+      schema:
+        type: integer
+      example: 1
+
+    PessoaId:
+      name: pessoaId
+      in: path
+      required: true
+      schema:
+        type: integer
+      example: 7
+
+    TransacaoId:
+      name: transacaoId
+      in: path
+      required: true
+      schema:
+        type: integer
+      example: 5
+
+    ConviteToken:
+      name: token
+      in: path
+      required: true
+      schema:
+        type: string
+      example: a3f8c2d1e4b7...
+
+    AtivoFiltro:
+      name: ativo
+      in: query
+      required: false
+      description: Filtra pelo status ativo/inativo
+      schema:
+        type: boolean
+
+    CompetenciaFiltro:
+      name: competencia
+      in: query
+      required: false
+      description: "Filtra pela competência no formato MES-AA (ex.: JUN-26)"
+      schema:
+        type: string
+        example: JUN-26
+
+  responses:
+    ErroValidacao:
+      description: Dados inválidos
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erro"
+
+    NaoEncontrado:
+      description: Registro não encontrado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erro"
+
+    NaoAutenticado:
+      description: Token não fornecido ou inválido
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erro"
+
+    NaoVinculado:
+      description: Token válido mas usuário não vinculado a nenhuma pessoa
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erro"
+
+  schemas:
+    Erro:
+      type: object
+      properties:
+        erro:
+          type: string
+          example: Registro não encontrado
+
+    NomeInput:
+      type: object
+      required: [nome]
+      properties:
+        nome:
+          type: string
+          example: Energia
+
+    PessoaInput:
+      type: object
+      required: [nome]
+      properties:
+        nome:
+          type: string
+          example: Erica
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: erica@email.com
+
+    Pessoa:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nome:
+          type: string
+          example: Erica
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: erica@email.com
+        supabase_user_id:
+          type: string
+          format: uuid
+          nullable: true
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        ativo:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+
+    Casa:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nome:
+          type: string
+          example: Minha Casa
+        ativo:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+
+    CasaPessoaInput:
+      type: object
+      required: [pessoa_id]
+      properties:
+        pessoa_id:
+          type: integer
+          example: 7
+        papel:
+          type: string
+          enum: [admin, membro]
+          default: membro
+          example: admin
+
+    CasaPessoa:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        pessoa_id:
+          type: integer
+          example: 7
+        papel:
+          type: string
+          enum: [admin, membro]
+          example: admin
+        created_at:
+          type: string
+          format: date-time
+        nome:
+          type: string
+          example: Erica
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: erica@email.com
+        ativo:
+          type: boolean
+          example: true
+
+    Categoria:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nome:
+          type: string
+          example: Energia
+        ativo:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+
+    FormaPagamento:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nome:
+          type: string
+          example: Pix
+        ativo:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+
+    OrigemReceita:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nome:
+          type: string
+          example: Salário
+        ativo:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+
+    CartaoContaInput:
+      type: object
+      required: [nome, tipo]
+      properties:
+        nome:
+          type: string
+          example: Nubank
+        tipo:
+          type: string
+          enum: [credito, debito]
+          example: credito
+        titular_id:
+          type: integer
+          nullable: true
+          example: 1
+        limite:
+          type: number
+          format: float
+          nullable: true
+          example: 12000
+        dia_fechamento:
+          type: integer
+          nullable: true
+          example: 19
+        dia_vencimento:
+          type: integer
+          nullable: true
+          example: 25
+
+    CartaoConta:
+      allOf:
+        - $ref: "#/components/schemas/CartaoContaInput"
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            ativo:
+              type: boolean
+              example: true
+            created_at:
+              type: string
+              format: date-time
+
+    TransacaoInput:
+      type: object
+      required: [data, casa_id, pessoa_id, categoria_id, valor_parcela, competencia]
+      properties:
+        data:
+          type: string
+          format: date
+          example: "2026-06-15"
+        casa_id:
+          type: integer
+          example: 1
+        pessoa_id:
+          type: integer
+          example: 7
+        lancado_por_id:
+          type: integer
+          nullable: true
+          example: 7
+        categoria_id:
+          type: integer
+          example: 3
+        descricao:
+          type: string
+          nullable: true
+          example: Conta de energia
+        cartao_conta_id:
+          type: integer
+          nullable: true
+          example: 2
+        forma_pagamento_id:
+          type: integer
+          nullable: true
+          example: 1
+        parcela_atual:
+          type: integer
+          nullable: true
+          example: 1
+        total_parcelas:
+          type: integer
+          nullable: true
+          example: 9
+        valor_parcela:
+          type: number
+          format: float
+          example: 149.40
+        competencia:
+          type: string
+          example: JUN-26
+
+    Transacao:
+      allOf:
+        - $ref: "#/components/schemas/TransacaoInput"
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            created_at:
+              type: string
+              format: date-time
+
+    TransacaoPagadorInput:
+      type: object
+      required: [pessoa_id]
+      properties:
+        pessoa_id:
+          type: integer
+          example: 7
+        percentual:
+          type: number
+          format: float
+          nullable: true
+          example: 60
+
+    TransacaoPagador:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        pessoa_id:
+          type: integer
+          example: 7
+        percentual:
+          type: number
+          format: float
+          nullable: true
+          example: 60
+        created_at:
+          type: string
+          format: date-time
+        nome:
+          type: string
+          example: Erica
+
+    ReceitaInput:
+      type: object
+      required: [casa_id, valor_liquido]
+      properties:
+        casa_id:
+          type: integer
+          example: 1
+        pessoa_id:
+          type: integer
+          nullable: true
+          example: 7
+        lancado_por_id:
+          type: integer
+          nullable: true
+          example: 7
+        origem_id:
+          type: integer
+          nullable: true
+          example: 1
+        observacao:
+          type: string
+          nullable: true
+          example: Salário referente a maio
+        valor_bruto:
+          type: number
+          format: float
+          nullable: true
+          example: 5500
+        descontos:
+          type: number
+          format: float
+          nullable: true
+          example: 500
+        valor_liquido:
+          type: number
+          format: float
+          example: 5000
+        data:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-06-05"
+        competencia:
+          type: string
+          nullable: true
+          example: JUN-26
+
+    Receita:
+      allOf:
+        - $ref: "#/components/schemas/ReceitaInput"
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            created_at:
+              type: string
+              format: date-time
+
+    MetaInput:
+      type: object
+      required: [objetivo]
+      properties:
+        objetivo:
+          type: string
+          example: Entrada Apartamento
+        valor_atual:
+          type: number
+          format: float
+          example: 0
+        meta:
+          type: number
+          format: float
+          nullable: true
+          example: 50000
+        falta:
+          type: number
+          format: float
+          nullable: true
+          example: 50000
+
+    Meta:
+      allOf:
+        - $ref: "#/components/schemas/MetaInput"
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            created_at:
+              type: string
+              format: date-time
+
+    PercentualCusteioInput:
+      type: object
+      required: [pessoa_id, competencia, percentual]
+      properties:
+        pessoa_id:
+          type: integer
+          example: 7
+        competencia:
+          type: string
+          example: JUN-26
+        percentual:
+          type: number
+          format: float
+          example: 30
+
+    PercentualCusteio:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        casa_id:
+          type: integer
+          example: 2
+        pessoa_id:
+          type: integer
+          example: 7
+        competencia:
+          type: string
+          example: JUN-26
+        percentual:
+          type: number
+          format: float
+          example: 30
+        created_at:
+          type: string
+          format: date-time
+
+    ConviteInput:
+      type: object
+      required: [email, convidado_por_id]
+      properties:
+        email:
+          type: string
+          format: email
+          example: convidado@email.com
+        convidado_por_id:
+          type: integer
+          example: 7
+        casa_id:
+          type: integer
+          nullable: true
+          example: 1
+        papel:
+          type: string
+          enum: [admin, membro]
+          nullable: true
+          example: membro
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-07-25T23:59:59Z"
+
+    Convite:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: convidado@email.com
+        convidado_por_id:
+          type: integer
+          example: 7
+        casa_id:
+          type: integer
+          nullable: true
+          example: 1
+        papel:
+          type: string
+          enum: [admin, membro]
+          nullable: true
+          example: membro
+        token:
+          type: string
+          example: a3f8c2d1e4b7...
+        status:
+          type: string
+          enum: [pendente, aceito, expirado]
+          example: pendente
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-07-25T23:59:59Z"
+        created_at:
+          type: string
+          format: date-time
+
+    DashboardCasa:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        nome:
+          type: string
+          example: Casa da Mamãe
+        gastos_total:
+          type: number
+          format: float
+          example: 181.17
+        percentual_custeio:
+          type: number
+          format: float
+          example: 30
+        minha_parte:
+          type: number
+          format: float
+          example: 54.35
+
+    Dashboard:
+      type: object
+      properties:
+        competencia:
+          type: string
+          example: JUN-26
+        receitas_total:
+          type: number
+          format: float
+          example: 8197.33
+        gastos_total:
+          type: number
+          format: float
+          example: 2861.05
+        minha_parte_total:
+          type: number
+          format: float
+          example: 2679.88
+        saldo:
+          type: number
+          format: float
+          example: 5517.45
+        casas:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardCasa"
