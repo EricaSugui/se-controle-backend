@@ -1,14 +1,13 @@
-const express = require('express');
-const pool = require('../db');
+import { Router } from 'express';
+import pool from '../db';
 
-const router = express.Router();
-
-const orNull = (value) => (value === undefined ? null : value);
+const router = Router();
+const orNull = (value: unknown) => (value === undefined ? null : value);
 
 router.get('/', async (req, res, next) => {
   try {
     const { ativo } = req.query;
-    const params = [];
+    const params: unknown[] = [];
     let query = 'SELECT * FROM cartoes_contas';
 
     if (ativo !== undefined) {
@@ -17,7 +16,6 @@ router.get('/', async (req, res, next) => {
     }
 
     query += ' ORDER BY nome';
-
     const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
@@ -29,13 +27,8 @@ router.post('/', async (req, res, next) => {
   try {
     const { nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento } = req.body;
 
-    if (!nome || !tipo) {
-      return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
-    }
-
-    if (tipo !== 'credito' && tipo !== 'debito') {
-      return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
-    }
+    if (!nome || !tipo) return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
+    if (tipo !== 'credito' && tipo !== 'debito') return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
 
     const { rows } = await pool.query(
       `INSERT INTO cartoes_contas (nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento)
@@ -52,13 +45,8 @@ router.put('/:id', async (req, res, next) => {
   try {
     const { nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento } = req.body;
 
-    if (!nome || !tipo) {
-      return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
-    }
-
-    if (tipo !== 'credito' && tipo !== 'debito') {
-      return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
-    }
+    if (!nome || !tipo) return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
+    if (tipo !== 'credito' && tipo !== 'debito') return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
 
     const { rows } = await pool.query(
       `UPDATE cartoes_contas
@@ -67,34 +55,27 @@ router.put('/:id', async (req, res, next) => {
       [nome, tipo, orNull(titular_id), orNull(limite), orNull(dia_fechamento), orNull(dia_vencimento), req.params.id]
     );
 
-    if (rows.length === 0) {
-      return res.status(404).json({ erro: 'Registro não encontrado' });
-    }
-
+    if (rows.length === 0) return res.status(404).json({ erro: 'Registro não encontrado' });
     res.json(rows[0]);
   } catch (err) {
     next(err);
   }
 });
 
-router.patch('/:id/ativar', (req, res, next) => setAtivo(req, res, next, true));
-router.patch('/:id/desativar', (req, res, next) => setAtivo(req, res, next, false));
-
-async function setAtivo(req, res, next, ativo) {
+async function setAtivo(req: any, res: any, next: any, ativo: boolean) {
   try {
     const { rows } = await pool.query(
       'UPDATE cartoes_contas SET ativo = $1 WHERE id = $2 RETURNING *',
       [ativo, req.params.id]
     );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ erro: 'Registro não encontrado' });
-    }
-
+    if (rows.length === 0) return res.status(404).json({ erro: 'Registro não encontrado' });
     res.json(rows[0]);
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = router;
+router.patch('/:id/ativar', (req, res, next) => setAtivo(req, res, next, true));
+router.patch('/:id/desativar', (req, res, next) => setAtivo(req, res, next, false));
+
+export default router;

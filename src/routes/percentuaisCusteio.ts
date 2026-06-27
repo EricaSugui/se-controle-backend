@@ -1,12 +1,12 @@
-const express = require('express');
-const pool = require('../db');
+import { Router } from 'express';
+import pool from '../db';
 
-const router = express.Router({ mergeParams: true });
+const router = Router({ mergeParams: true });
 
 router.get('/', async (req, res, next) => {
   try {
     const { competencia, pessoa_id } = req.query;
-    const params = [req.params.casaId];
+    const params: unknown[] = [(req.params as any).casaId];
     let query = 'SELECT * FROM percentuais_custeio WHERE casa_id = $1';
 
     if (competencia !== undefined) {
@@ -20,7 +20,6 @@ router.get('/', async (req, res, next) => {
     }
 
     query += ' ORDER BY competencia DESC';
-
     const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
@@ -42,7 +41,7 @@ router.post('/', async (req, res, next) => {
        ON CONFLICT (casa_id, pessoa_id, competencia)
        DO UPDATE SET percentual = EXCLUDED.percentual
        RETURNING *`,
-      [req.params.casaId, pessoa_id, competencia, percentual]
+      [(req.params as any).casaId, pessoa_id, competencia, percentual]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -50,4 +49,4 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-module.exports = router;
+export default router;
