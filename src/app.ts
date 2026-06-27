@@ -1,7 +1,7 @@
-const express = require('express');
-const cors = require('cors');
+import express from 'express';
+import cors from 'cors';
 
-const transacoesRouter = require('./routes/transacoes');
+import transacoesRouter from './routes/transacoes';
 
 const app = express();
 
@@ -14,4 +14,4 @@ app.get('/health', (req, res) => {
 
 app.use('/transacoes', transacoesRouter);
 
-module.exports = app;
+export default app;

@@ -1,8 +1,17 @@
-const express = require('express');
+import { Router } from 'express';
 
-const router = express.Router();
+const router = Router();
 
-let transacoes = [];
+type TipoTransacao = 'receita' | 'despesa';
+
+interface Transacao {
+  id: number;
+  descricao: string;
+  valor: number;
+  tipo: TipoTransacao;
+}
+
+let transacoes: Transacao[] = [];
 let nextId = 1;
 
 router.get('/', (req, res) => {
@@ -16,7 +25,7 @@ router.post('/', (req, res) => {
     return res.status(400).json({ erro: 'descricao, valor e tipo são obrigatórios' });
   }
 
-  const transacao = { id: nextId++, descricao, valor, tipo };
+  const transacao: Transacao = { id: nextId++, descricao, valor, tipo };
   transacoes.push(transacao);
   res.status(201).json(transacao);
 });
@@ -33,4 +42,4 @@ router.delete('/:id', (req, res) => {
   res.status(204).send();
 });
 
-module.exports = router;
+export default router;
