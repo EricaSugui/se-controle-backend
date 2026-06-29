@@ -1347,8 +1347,11 @@ paths:
       tags: [Dashboard]
       summary: Resumo financeiro de uma competência
       description: >
-        Retorna o total de receitas, o total de gastos por casa (aplicando o percentual de
-        custeio cadastrado para aquela competência) e o saldo do mês.
+        Retorna, para cada casa vinculada à pessoa autenticada, o total de receitas da casa,
+        o total de gastos e o saldo da casa, além do percentual de custeio e a parte devida
+        pela pessoa naquela competência.
+      security:
+        - bearerAuth: []
       parameters:
         - name: competencia
           in: query
@@ -1366,6 +1369,8 @@ paths:
                 $ref: "#/components/schemas/Dashboard"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutorizado"
 
   # -------------------------------------------------------------------
   # Fechamento Mensal
@@ -2002,10 +2007,18 @@ components:
         nome:
           type: string
           example: Casa da Mamãe
+        receitas_total:
+          type: number
+          format: float
+          example: 4000.00
         gastos_total:
           type: number
           format: float
           example: 181.17
+        saldo_casa:
+          type: number
+          format: float
+          example: 3818.83
         percentual_custeio:
           type: number
           format: float
@@ -2021,22 +2034,10 @@ components:
         competencia:
           type: string
           example: JUN-26
-        receitas_total:
-          type: number
-          format: float
-          example: 8197.33
-        gastos_total:
-          type: number
-          format: float
-          example: 2861.05
         minha_parte_total:
           type: number
           format: float
           example: 2679.88
-        saldo:
-          type: number
-          format: float
-          example: 5517.45
         casas:
           type: array
           items:
