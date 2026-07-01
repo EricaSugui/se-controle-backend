@@ -110,10 +110,19 @@ router.post('/', async (req, res, next) => {
     );
 
     const convite = rows[0];
-    const redirectTo = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/convite?token=${token}` : undefined;
+    const redirectTo = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/convidado?token=${token}` : undefined;
+
+    const metadata: Record<string, string> = {};
+    if (casa_id) {
+      const { rows: casaRows } = await pool.query('SELECT nome FROM casas WHERE id = $1', [casa_id]);
+      if (casaRows.length > 0) metadata.casa_nome = casaRows[0].nome;
+    }
+    const { rows: convidadoPorRows } = await pool.query('SELECT nome FROM pessoas WHERE id = $1', [convidado_por_id]);
+    if (convidadoPorRows.length > 0) metadata.convidado_por_nome = convidadoPorRows[0].nome;
+    if (papel) metadata.papel = papel === 'admin' ? 'administrador(a)' : 'membro';
 
     try {
-      await inviteSupabaseUser(email, redirectTo);
+      await inviteSupabaseUser(email, redirectTo, metadata);
     } catch (inviteErr) {
       await pool.query('DELETE FROM convites WHERE id = $1', [convite.id]);
       throw inviteErr;
