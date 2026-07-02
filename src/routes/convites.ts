@@ -111,6 +111,8 @@ router.post('/', async (req, res, next) => {
 
     const convite = rows[0];
     const redirectTo = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/convidado?token=${token}` : undefined;
+    console.log('[convites] FRONTEND_URL:', process.env.FRONTEND_URL);
+    console.log('[convites] redirectTo enviado ao Supabase:', redirectTo);
 
     const metadata: Record<string, string> = {};
     if (casa_id) {
