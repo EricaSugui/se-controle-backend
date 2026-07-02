@@ -19,7 +19,6 @@ export async function inviteSupabaseUser(email: string, redirectTo?: string, dat
   // redirect_to no corpo JSON é ignorado e ele cai no Site URL padrão.
   const url = new URL(`${process.env.SUPABASE_URL}/auth/v1/invite`);
   if (redirectTo) url.searchParams.set('redirect_to', redirectTo);
-  console.log('[supabase] URL de invite chamada:', url.toString());
 
   const response = await fetch(url.toString(), {
     method: 'POST',
