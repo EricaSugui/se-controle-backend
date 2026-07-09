@@ -631,10 +631,13 @@ paths:
       tags: [Cartões e Contas]
       summary: Lista cartões e contas
       description: >
-        Retorna apenas os cartões/contas cujo titular compartilha alguma casa
-        com o usuário autenticado (contas sem titular não são retornadas).
-        Cada item inclui `pode_editar`, indicando se o usuário autenticado é
-        admin em alguma casa compartilhada com o titular.
+        Retorna os cartões/contas do próprio usuário autenticado (titular),
+        mais os de outras pessoas que tenham sido explicitamente
+        compartilhados (`compartilhado = true` em
+        /cartoes-contas/{cartaoId}/visibilidade) com alguma casa da qual o
+        usuário participa. Privado por padrão — compartilhar uma casa com o
+        titular não é suficiente por si só. Cada item inclui `pode_editar`,
+        verdadeiro somente quando o usuário autenticado é o titular.
       security:
         - bearerAuth: []
       parameters:
@@ -685,9 +688,7 @@ paths:
     put:
       tags: [Cartões e Contas]
       summary: Atualiza um cartão ou conta
-      description: >
-        Requer que o usuário autenticado seja admin em alguma casa
-        compartilhada com o titular atual do registro.
+      description: Requer que o usuário autenticado seja o titular do registro.
       security:
         - bearerAuth: []
       parameters:
@@ -718,9 +719,7 @@ paths:
     patch:
       tags: [Cartões e Contas]
       summary: Ativa um cartão ou conta
-      description: >
-        Requer que o usuário autenticado seja admin em alguma casa
-        compartilhada com o titular atual do registro.
+      description: Requer que o usuário autenticado seja o titular do registro.
       security:
         - bearerAuth: []
       parameters:
@@ -743,9 +742,7 @@ paths:
     patch:
       tags: [Cartões e Contas]
       summary: Desativa um cartão ou conta
-      description: >
-        Requer que o usuário autenticado seja admin em alguma casa
-        compartilhada com o titular atual do registro.
+      description: Requer que o usuário autenticado seja o titular do registro.
       security:
         - bearerAuth: []
       parameters:
@@ -2132,9 +2129,7 @@ components:
             pode_editar:
               type: boolean
               readOnly: true
-              description: >
-                Se o usuário autenticado é admin em alguma casa compartilhada
-                com o titular deste registro. Presente apenas na listagem.
+              description: Se o usuário autenticado é o titular deste registro. Presente apenas na listagem.
               example: true
 
     CartaoCasaVisibilidadeInput:
