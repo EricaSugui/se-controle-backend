@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import pool from '../db';
+import { autenticar } from '../middleware/auth';
 
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
@@ -16,6 +17,31 @@ router.get('/', async (req, res, next) => {
     }
 
     query += ' ORDER BY nome';
+    const { rows } = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/relacionadas', autenticar, async (req, res, next) => {
+  try {
+    const { ativo } = req.query;
+    const pessoaId = (req as any).usuario.id;
+    const params: unknown[] = [pessoaId];
+    let query = `
+      SELECT DISTINCT p.*
+      FROM pessoas p
+      JOIN casa_pessoas cp ON cp.pessoa_id = p.id
+      WHERE cp.casa_id IN (SELECT casa_id FROM casa_pessoas WHERE pessoa_id = $1)
+    `;
+
+    if (ativo !== undefined) {
+      params.push(ativo === 'true');
+      query += ` AND p.ativo = $${params.length}`;
+    }
+
+    query += ' ORDER BY p.nome';
     const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
