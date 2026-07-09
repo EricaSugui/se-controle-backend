@@ -146,6 +146,33 @@ paths:
         "400":
           $ref: "#/components/responses/ErroValidacao"
 
+  /pessoas/relacionadas:
+    get:
+      tags: [Pessoas]
+      summary: Lista pessoas que compartilham alguma casa com o usuário autenticado
+      description: >
+        Retorna as pessoas que são membros de pelo menos uma casa da qual o
+        usuário autenticado também é membro (sem duplicatas). Usado, por
+        exemplo, para escolher o titular de um cartão/conta sem expor pessoas
+        de casas às quais o usuário não pertence.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de pessoas relacionadas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pessoa"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/NaoVinculado"
+
   /pessoas/{id}:
     get:
       tags: [Pessoas]
@@ -737,6 +764,13 @@ paths:
     get:
       tags: [Cartões e Contas]
       summary: Lista cartões e contas
+      description: >
+        Retorna apenas os cartões/contas cujo titular compartilha alguma casa
+        com o usuário autenticado (contas sem titular não são retornadas).
+        Cada item inclui `pode_editar`, indicando se o usuário autenticado é
+        admin em alguma casa compartilhada com o titular.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/AtivoFiltro"
       responses:
@@ -748,6 +782,10 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/CartaoConta"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/NaoVinculado"
     post:
       tags: [Cartões e Contas]
       summary: Cria um cartão ou conta
@@ -771,6 +809,11 @@ paths:
     put:
       tags: [Cartões e Contas]
       summary: Atualiza um cartão ou conta
+      description: >
+        Requer que o usuário autenticado seja admin em alguma casa
+        compartilhada com o titular atual do registro.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       requestBody:
@@ -788,6 +831,10 @@ paths:
                 $ref: "#/components/schemas/CartaoConta"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -795,6 +842,11 @@ paths:
     patch:
       tags: [Cartões e Contas]
       summary: Ativa um cartão ou conta
+      description: >
+        Requer que o usuário autenticado seja admin em alguma casa
+        compartilhada com o titular atual do registro.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
@@ -804,6 +856,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CartaoConta"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -811,6 +867,11 @@ paths:
     patch:
       tags: [Cartões e Contas]
       summary: Desativa um cartão ou conta
+      description: >
+        Requer que o usuário autenticado seja admin em alguma casa
+        compartilhada com o titular atual do registro.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
@@ -820,6 +881,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CartaoConta"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -1009,6 +1074,13 @@ paths:
     get:
       tags: [Receitas]
       summary: Lista receitas
+      description: >
+        Retorna apenas receitas de casas das quais o usuário autenticado é
+        membro. Cada item inclui `pode_editar`, verdadeiro se o usuário
+        autenticado registrou a receita (`lancado_por_id`) ou é admin na casa
+        dela.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CompetenciaFiltro"
       responses:
@@ -1020,9 +1092,19 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Receita"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/NaoVinculado"
     post:
       tags: [Receitas]
       summary: Cria uma receita
+      description: >
+        `lancado_por_id` é sempre definido como o usuário autenticado,
+        ignorando qualquer valor enviado no corpo. Requer que o usuário seja
+        membro da casa informada em `casa_id`.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1038,11 +1120,18 @@ paths:
                 $ref: "#/components/schemas/Receita"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
 
   /receitas/{id}:
     get:
       tags: [Receitas]
       summary: Busca uma receita pelo id
+      description: Requer que o usuário autenticado seja membro da casa da receita.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
@@ -1052,11 +1141,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Receita"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
     put:
       tags: [Receitas]
       summary: Atualiza uma receita
+      description: >
+        Requer que o usuário autenticado tenha registrado a receita
+        (`lancado_por_id`) ou seja admin na casa dela. `lancado_por_id` não é
+        alterável.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       requestBody:
@@ -1074,16 +1171,29 @@ paths:
                 $ref: "#/components/schemas/Receita"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
     delete:
       tags: [Receitas]
       summary: Remove uma receita
+      description: >
+        Requer que o usuário autenticado tenha registrado a receita
+        (`lancado_por_id`) ou seja admin na casa dela.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
         "204":
           description: Receita removida
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -1504,6 +1614,13 @@ components:
           schema:
             $ref: "#/components/schemas/Erro"
 
+    SemPermissao:
+      description: Usuário autenticado, mas sem permissão para esta ação
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Erro"
+
   schemas:
     Erro:
       type: object
@@ -1707,6 +1824,13 @@ components:
             created_at:
               type: string
               format: date-time
+            pode_editar:
+              type: boolean
+              readOnly: true
+              description: >
+                Se o usuário autenticado é admin em alguma casa compartilhada
+                com o titular deste registro. Presente apenas na listagem.
+              example: true
 
     TransacaoInput:
       type: object
@@ -1814,10 +1938,6 @@ components:
           type: integer
           nullable: true
           example: 7
-        lancado_por_id:
-          type: integer
-          nullable: true
-          example: 7
         origem_id:
           type: integer
           nullable: true
@@ -1858,6 +1978,27 @@ components:
             id:
               type: integer
               example: 1
+            lancado_por_id:
+              type: integer
+              nullable: true
+              readOnly: true
+              description: Definido automaticamente pelo servidor a partir do usuário autenticado na criação; não é alterável.
+              example: 7
+            pessoa_nome:
+              type: string
+              nullable: true
+              readOnly: true
+              example: Erica
+            origem_nome:
+              type: string
+              nullable: true
+              readOnly: true
+              example: Salário
+            pode_editar:
+              type: boolean
+              readOnly: true
+              description: Se o usuário autenticado registrou a receita ou é admin na casa dela.
+              example: true
             created_at:
               type: string
               format: date-time
