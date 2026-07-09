@@ -21,6 +21,13 @@ export function adicionarMesesCompetencia(competencia: string, meses: number): s
   return `${MESES[novoIndiceMes]}-${novoAnoAbrev}`;
 }
 
+export function dataParaCompetencia(dataISO: string): string {
+  const data = new Date(dataISO);
+  const mes = MESES[data.getUTCMonth()];
+  const ano = String(data.getUTCFullYear() % 100).padStart(2, '0');
+  return `${mes}-${ano}`;
+}
+
 export function competenciaParaData(competencia: string): string {
   const [mesAbrev, anoAbrev] = competencia.split('-');
   const indiceMes = MESES.indexOf(mesAbrev.toUpperCase());
