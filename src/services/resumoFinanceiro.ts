@@ -17,7 +17,11 @@ interface Dashboard {
   casas: DashboardCasa[];
 }
 
-export async function calcularResumo(competencia: string, pessoaId: number): Promise<Dashboard> {
+export async function calcularResumo(
+  competencia: string,
+  pessoaId: number,
+  eixo: 'caixa' | 'competencia' = 'caixa'
+): Promise<Dashboard> {
   const { rows: casasRows } = await pool.query(
     `SELECT c.id, c.nome FROM casas c
      JOIN casa_pessoas cp ON cp.casa_id = c.id
@@ -26,16 +30,17 @@ export async function calcularResumo(competencia: string, pessoaId: number): Pro
     [pessoaId]
   );
 
-  const inicioCaixa = competenciaParaData(competencia);
-  const fimCaixa = competenciaParaData(adicionarMesesCompetencia(competencia, 1));
+  const gastosQuery = eixo === 'competencia'
+    ? `SELECT c.casa_id, COALESCE(SUM(p.valor), 0) AS total
+       FROM compras c JOIN parcelas p ON p.compra_id = c.id
+       WHERE c.competencia = $1 GROUP BY c.casa_id`
+    : `SELECT casa_id, COALESCE(SUM(valor), 0) AS total
+       FROM parcelas_com_caixa WHERE data_caixa >= $1 AND data_caixa < $2 GROUP BY casa_id`;
+  const gastosParams = eixo === 'competencia'
+    ? [competencia]
+    : [competenciaParaData(competencia), competenciaParaData(adicionarMesesCompetencia(competencia, 1))];
 
-  const { rows: gastosRows } = await pool.query(
-    `SELECT casa_id, COALESCE(SUM(valor), 0) AS total
-     FROM parcelas_com_caixa
-     WHERE data_caixa >= $1 AND data_caixa < $2
-     GROUP BY casa_id`,
-    [inicioCaixa, fimCaixa]
-  );
+  const { rows: gastosRows } = await pool.query(gastosQuery, gastosParams);
   const gastosPorCasa: Record<number, number> = {};
   gastosRows.forEach((row: any) => { gastosPorCasa[row.casa_id] = Number(row.total); });
 

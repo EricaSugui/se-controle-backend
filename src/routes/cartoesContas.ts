@@ -44,12 +44,28 @@ router.get('/', autenticar, async (req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', autenticar, async (req, res, next) => {
   try {
+    const pessoaId = (req as any).usuario.id;
     const { nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento } = req.body;
 
     if (!nome || !tipo) return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
     if (tipo !== 'credito' && tipo !== 'debito') return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
+
+    if (titular_id !== undefined && titular_id !== null && Number(titular_id) !== pessoaId) {
+      const { rows: permRows } = await pool.query(
+        `SELECT EXISTS (
+           SELECT 1
+           FROM casa_pessoas cp_titular
+           JOIN casa_pessoas cp_user ON cp_user.casa_id = cp_titular.casa_id
+           WHERE cp_titular.pessoa_id = $1
+             AND cp_user.pessoa_id = $2
+             AND cp_user.papel = 'admin'
+         ) AS pode`,
+        [titular_id, pessoaId]
+      );
+      if (!permRows[0].pode) return res.status(403).json({ erro: 'Você não pode atribuir este cartão/conta a essa pessoa' });
+    }
 
     const { rows } = await pool.query(
       `INSERT INTO cartoes_contas (nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento)

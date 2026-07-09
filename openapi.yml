@@ -116,7 +116,10 @@ paths:
   /pessoas:
     get:
       tags: [Pessoas]
-      summary: Lista pessoas
+      summary: Lista pessoas que compartilham alguma casa com o usuário autenticado
+      description: Idêntico a /pessoas/relacionadas — mantido por retrocompatibilidade.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/AtivoFiltro"
       responses:
@@ -128,9 +131,13 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Pessoa"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
     post:
       tags: [Pessoas]
       summary: Cria uma pessoa
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -146,6 +153,8 @@ paths:
                 $ref: "#/components/schemas/Pessoa"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
 
   /pessoas/relacionadas:
     get:
@@ -178,6 +187,9 @@ paths:
     get:
       tags: [Pessoas]
       summary: Busca uma pessoa pelo id
+      description: Retorna a pessoa se for a própria pessoa autenticada ou compartilhar alguma casa com ela.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
@@ -187,11 +199,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Pessoa"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
     put:
       tags: [Pessoas]
       summary: Atualiza uma pessoa
+      description: Requer que o usuário autenticado esteja editando os próprios dados.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       requestBody:
@@ -209,38 +226,10 @@ paths:
                 $ref: "#/components/schemas/Pessoa"
         "400":
           $ref: "#/components/responses/ErroValidacao"
-        "404":
-          $ref: "#/components/responses/NaoEncontrado"
-
-  /pessoas/{id}/ativar:
-    patch:
-      tags: [Pessoas]
-      summary: Ativa uma pessoa
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
-          description: Pessoa ativada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Pessoa"
-        "404":
-          $ref: "#/components/responses/NaoEncontrado"
-
-  /pessoas/{id}/desativar:
-    patch:
-      tags: [Pessoas]
-      summary: Desativa uma pessoa
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
-          description: Pessoa desativada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Pessoa"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -251,6 +240,9 @@ paths:
     get:
       tags: [Casas]
       summary: Lista casas
+      description: Todas as casas do sistema são visíveis a qualquer usuário autenticado.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/AtivoFiltro"
       responses:
@@ -262,9 +254,16 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Casa"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
     post:
       tags: [Casas]
       summary: Cria uma casa
+      description: >
+        Qualquer usuário autenticado pode criar uma casa. O criador é
+        automaticamente adicionado como admin da casa criada.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -273,18 +272,29 @@ paths:
               $ref: "#/components/schemas/NomeInput"
       responses:
         "201":
-          description: Casa criada
+          description: Casa criada (o usuário autenticado já é admin dela)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Casa"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "409":
+          description: Já existe uma casa com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
 
   /casas/{id}:
     put:
       tags: [Casas]
       summary: Atualiza uma casa
+      description: Requer que o usuário autenticado seja admin da casa.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       requestBody:
@@ -302,6 +312,10 @@ paths:
                 $ref: "#/components/schemas/Casa"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -309,6 +323,9 @@ paths:
     patch:
       tags: [Casas]
       summary: Ativa uma casa
+      description: Requer que o usuário autenticado seja admin da casa.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
@@ -318,6 +335,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Casa"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -325,6 +346,9 @@ paths:
     patch:
       tags: [Casas]
       summary: Desativa uma casa
+      description: Requer que o usuário autenticado seja admin da casa.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
@@ -334,6 +358,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Casa"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -344,6 +372,9 @@ paths:
     get:
       tags: [Casa Pessoas]
       summary: Lista membros de uma casa
+      description: Requer que o usuário autenticado participe desta casa.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CasaId"
       responses:
@@ -355,9 +386,16 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/CasaPessoa"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
     post:
       tags: [Casa Pessoas]
       summary: Associa uma pessoa a uma casa
+      description: Requer que o usuário autenticado seja admin desta casa.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CasaId"
       requestBody:
@@ -375,6 +413,10 @@ paths:
                 $ref: "#/components/schemas/CasaPessoa"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "409":
           description: Pessoa já associada a esta casa
           content:
@@ -386,6 +428,9 @@ paths:
     patch:
       tags: [Casa Pessoas]
       summary: Atualiza o papel de uma pessoa na casa
+      description: Requer que o usuário autenticado seja admin desta casa.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CasaId"
         - $ref: "#/components/parameters/PessoaId"
@@ -410,6 +455,10 @@ paths:
                 $ref: "#/components/schemas/CasaPessoa"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -417,12 +466,19 @@ paths:
     delete:
       tags: [Casa Pessoas]
       summary: Remove a associação de uma pessoa a uma casa
+      description: Requer que o usuário autenticado seja admin desta casa.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CasaId"
         - $ref: "#/components/parameters/PessoaId"
       responses:
         "204":
           description: Associação removida
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -437,6 +493,9 @@ paths:
         Retorna os registros de percentual de custeio da casa.
         Filtrável por competencia e/ou pessoa_id.
         Quando ambos são informados, retorna o registro exato daquela combinação (ou array vazio).
+        Requer que o usuário autenticado participe desta casa.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CasaId"
         - $ref: "#/components/parameters/CompetenciaFiltro"
@@ -460,7 +519,10 @@ paths:
       summary: Define o percentual de custeio de uma pessoa em uma casa para uma competência
       description: >
         Faz upsert: se já existe um registro para a combinação (casa, pessoa, competência),
-        atualiza o percentual. Caso contrário, cria um novo.
+        atualiza o percentual. Caso contrário, cria um novo. Requer que o usuário
+        autenticado seja admin desta casa.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CasaId"
       requestBody:
@@ -478,6 +540,10 @@ paths:
                 $ref: "#/components/schemas/PercentualCusteio"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
 
   # -------------------------------------------------------------------
   # Categorias
@@ -486,6 +552,11 @@ paths:
     get:
       tags: [Categorias]
       summary: Lista categorias
+      description: >
+        Somente leitura — categorias são cadastradas via backend/seed, não há
+        criação/edição via API.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/AtivoFiltro"
       responses:
@@ -497,80 +568,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Categoria"
-    post:
-      tags: [Categorias]
-      summary: Cria uma categoria
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/NomeInput"
-      responses:
-        "201":
-          description: Categoria criada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Categoria"
-        "400":
-          $ref: "#/components/responses/ErroValidacao"
-
-  /categorias/{id}:
-    put:
-      tags: [Categorias]
-      summary: Atualiza uma categoria
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/NomeInput"
-      responses:
-        "200":
-          description: Categoria atualizada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Categoria"
-        "400":
-          $ref: "#/components/responses/ErroValidacao"
-        "404":
-          $ref: "#/components/responses/NaoEncontrado"
-
-  /categorias/{id}/ativar:
-    patch:
-      tags: [Categorias]
-      summary: Ativa uma categoria
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
-          description: Categoria ativada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Categoria"
-        "404":
-          $ref: "#/components/responses/NaoEncontrado"
-
-  /categorias/{id}/desativar:
-    patch:
-      tags: [Categorias]
-      summary: Desativa uma categoria
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
-          description: Categoria desativada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Categoria"
-        "404":
-          $ref: "#/components/responses/NaoEncontrado"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
 
   # -------------------------------------------------------------------
   # Formas de Pagamento
@@ -579,6 +578,11 @@ paths:
     get:
       tags: [Formas de Pagamento]
       summary: Lista formas de pagamento
+      description: >
+        Somente leitura — formas de pagamento são cadastradas via backend/seed,
+        não há criação/edição via API.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/AtivoFiltro"
       responses:
@@ -590,80 +594,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/FormaPagamento"
-    post:
-      tags: [Formas de Pagamento]
-      summary: Cria uma forma de pagamento
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/NomeInput"
-      responses:
-        "201":
-          description: Forma de pagamento criada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FormaPagamento"
-        "400":
-          $ref: "#/components/responses/ErroValidacao"
-
-  /formas-pagamento/{id}:
-    put:
-      tags: [Formas de Pagamento]
-      summary: Atualiza uma forma de pagamento
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/NomeInput"
-      responses:
-        "200":
-          description: Forma de pagamento atualizada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FormaPagamento"
-        "400":
-          $ref: "#/components/responses/ErroValidacao"
-        "404":
-          $ref: "#/components/responses/NaoEncontrado"
-
-  /formas-pagamento/{id}/ativar:
-    patch:
-      tags: [Formas de Pagamento]
-      summary: Ativa uma forma de pagamento
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
-          description: Forma de pagamento ativada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FormaPagamento"
-        "404":
-          $ref: "#/components/responses/NaoEncontrado"
-
-  /formas-pagamento/{id}/desativar:
-    patch:
-      tags: [Formas de Pagamento]
-      summary: Desativa uma forma de pagamento
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
-          description: Forma de pagamento desativada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FormaPagamento"
-        "404":
-          $ref: "#/components/responses/NaoEncontrado"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
 
   # -------------------------------------------------------------------
   # Origens de Receita
@@ -672,6 +604,11 @@ paths:
     get:
       tags: [Origens de Receita]
       summary: Lista origens de receita
+      description: >
+        Somente leitura — origens de receita são cadastradas via backend/seed,
+        não há criação/edição via API.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/AtivoFiltro"
       responses:
@@ -683,80 +620,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/OrigemReceita"
-    post:
-      tags: [Origens de Receita]
-      summary: Cria uma origem de receita
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/NomeInput"
-      responses:
-        "201":
-          description: Origem criada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OrigemReceita"
-        "400":
-          $ref: "#/components/responses/ErroValidacao"
-
-  /origens-receita/{id}:
-    put:
-      tags: [Origens de Receita]
-      summary: Atualiza uma origem de receita
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/NomeInput"
-      responses:
-        "200":
-          description: Origem atualizada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OrigemReceita"
-        "400":
-          $ref: "#/components/responses/ErroValidacao"
-        "404":
-          $ref: "#/components/responses/NaoEncontrado"
-
-  /origens-receita/{id}/ativar:
-    patch:
-      tags: [Origens de Receita]
-      summary: Ativa uma origem de receita
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
-          description: Origem ativada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OrigemReceita"
-        "404":
-          $ref: "#/components/responses/NaoEncontrado"
-
-  /origens-receita/{id}/desativar:
-    patch:
-      tags: [Origens de Receita]
-      summary: Desativa uma origem de receita
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
-          description: Origem desativada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OrigemReceita"
-        "404":
-          $ref: "#/components/responses/NaoEncontrado"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
 
   # -------------------------------------------------------------------
   # Cartões e Contas
@@ -790,6 +655,12 @@ paths:
     post:
       tags: [Cartões e Contas]
       summary: Cria um cartão ou conta
+      description: >
+        `titular_id`, se informado e diferente do próprio usuário autenticado,
+        exige que o usuário seja admin em alguma casa compartilhada com a
+        pessoa indicada.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -805,6 +676,10 @@ paths:
                 $ref: "#/components/schemas/CartaoConta"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
 
   /cartoes-contas/{id}:
     put:
@@ -882,6 +757,126 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CartaoConta"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Cartão Casa Visibilidade
+  # -------------------------------------------------------------------
+  /cartoes-contas/{cartaoId}/visibilidade:
+    get:
+      tags: [Cartões e Contas]
+      summary: Lista o compartilhamento de um cartão/conta com casas
+      description: >
+        O titular vê todas as entradas de visibilidade do cartão. Um membro de
+        casa que não é o titular só vê a entrada referente à própria casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CartaoId"
+      responses:
+        "200":
+          description: Lista de entradas de visibilidade
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CartaoCasaVisibilidade"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    post:
+      tags: [Cartões e Contas]
+      summary: Define o compartilhamento de um cartão/conta com uma casa
+      description: Requer que o usuário autenticado seja o titular do cartão.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CartaoId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CartaoCasaVisibilidadeInput"
+      responses:
+        "201":
+          description: Entrada de visibilidade criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartaoCasaVisibilidade"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          description: Já existe uma entrada de visibilidade para esta casa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  /cartoes-contas/{cartaoId}/visibilidade/{casaId}:
+    patch:
+      tags: [Cartões e Contas]
+      summary: Alterna o compartilhamento de um cartão/conta com uma casa
+      description: Requer que o usuário autenticado seja o titular do cartão.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CartaoId"
+        - $ref: "#/components/parameters/CasaId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [compartilhado]
+              properties:
+                compartilhado:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Entrada de visibilidade atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartaoCasaVisibilidade"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    delete:
+      tags: [Cartões e Contas]
+      summary: Remove o compartilhamento de um cartão/conta com uma casa
+      description: >
+        Requer que o usuário autenticado seja o titular do cartão. Remover a
+        entrada volta o cartão ao padrão privado para aquela casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CartaoId"
+        - $ref: "#/components/parameters/CasaId"
+      responses:
+        "204":
+          description: Entrada de visibilidade removida
         "401":
           $ref: "#/components/responses/NaoAutenticado"
         "403":
@@ -1381,6 +1376,11 @@ paths:
     get:
       tags: [Metas]
       summary: Lista metas
+      description: >
+        Retorna metas pessoais do usuário autenticado (`pessoa_id`) e metas
+        das casas das quais ele é membro (`casa_id`).
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Lista de metas
@@ -1390,9 +1390,17 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
     post:
       tags: [Metas]
       summary: Cria uma meta
+      description: >
+        Exige exatamente um entre `pessoa_id` e `casa_id`. Meta pessoal só
+        pode ser criada pelo próprio usuário (`pessoa_id` = usuário
+        autenticado); meta de casa exige que o usuário seja admin da casa.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1408,11 +1416,20 @@ paths:
                 $ref: "#/components/schemas/Meta"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
 
   /metas/{id}:
     get:
       tags: [Metas]
       summary: Busca uma meta pelo id
+      description: >
+        Requer que a meta seja pessoal do usuário autenticado, ou de casa da
+        qual ele é membro.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
@@ -1422,11 +1439,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
     put:
       tags: [Metas]
       summary: Atualiza uma meta
+      description: >
+        Requer que a meta seja pessoal do usuário autenticado, ou de casa da
+        qual ele é admin. `pessoa_id`/`casa_id` não são alteráveis (escopo
+        fixo desde a criação).
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       requestBody:
@@ -1444,16 +1469,29 @@ paths:
                 $ref: "#/components/schemas/Meta"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
     delete:
       tags: [Metas]
       summary: Remove uma meta
+      description: >
+        Requer que a meta seja pessoal do usuário autenticado, ou de casa da
+        qual ele é admin.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
         "204":
           description: Meta removida
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -1464,6 +1502,12 @@ paths:
     get:
       tags: [Convites]
       summary: Lista convites
+      description: >
+        Retorna convites de casas das quais o usuário autenticado é admin, e
+        convites sem casa (auto-cadastro) criados pelo próprio usuário. A
+        resposta nunca inclui o campo `token`.
+      security:
+        - bearerAuth: []
       parameters:
         - name: status
           in: query
@@ -1481,13 +1525,15 @@ paths:
           example: convidado@email.com
       responses:
         "200":
-          description: Lista de convites
+          description: Lista de convites (sem o campo token)
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Convite"
+                  $ref: "#/components/schemas/ConviteSemToken"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
     post:
       tags: [Convites]
       summary: Cria um convite e envia email pelo Supabase
@@ -1495,6 +1541,12 @@ paths:
         Salva o convite no banco e aciona o Supabase para enviar um email de convite
         ao endereço informado. O link no email redireciona ao frontend com o token
         do convite na query string e o access_token do Supabase no fragmento (#).
+        `convidado_por_id` é sempre o usuário autenticado, ignorando qualquer
+        valor enviado no corpo. Se `casa_id` for informado, exige que o usuário
+        seja admin daquela casa; convites sem `casa_id` (auto-cadastro) podem
+        ser criados por qualquer autenticado.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1503,13 +1555,17 @@ paths:
               $ref: "#/components/schemas/ConviteInput"
       responses:
         "201":
-          description: Convite criado e email enviado
+          description: Convite criado e email enviado (sem o campo token)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Convite"
+                $ref: "#/components/schemas/ConviteSemToken"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
 
   /convites/token/{token}:
     get:
@@ -1579,15 +1635,22 @@ paths:
     get:
       tags: [Convites]
       summary: Busca um convite pelo id
+      description: >
+        Requer que o usuário autenticado seja admin da casa do convite, ou
+        (se o convite não tiver casa) que tenha sido quem o criou.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
         "200":
-          description: Convite encontrado
+          description: Convite encontrado (sem o campo token)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Convite"
+                $ref: "#/components/schemas/ConviteSemToken"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -1597,16 +1660,24 @@ paths:
       summary: Marca um convite como aceito (uso administrativo)
       description: >
         Altera apenas o status do convite para "aceito", sem criar pessoa nem
-        acionar Supabase. Use para correções manuais.
+        acionar Supabase. Use para correções manuais. Requer que o usuário
+        autenticado seja admin da casa do convite, ou (se o convite não tiver
+        casa) que tenha sido quem o criou.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
         "200":
-          description: Convite marcado como aceito
+          description: Convite marcado como aceito (sem o campo token)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Convite"
+                $ref: "#/components/schemas/ConviteSemToken"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -1614,15 +1685,24 @@ paths:
     patch:
       tags: [Convites]
       summary: Expira um convite pendente
+      description: >
+        Requer que o usuário autenticado seja admin da casa do convite, ou
+        (se o convite não tiver casa) que tenha sido quem o criou.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
         "200":
-          description: Convite expirado
+          description: Convite expirado (sem o campo token)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Convite"
+                $ref: "#/components/schemas/ConviteSemToken"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -1647,6 +1727,19 @@ paths:
           schema:
             type: string
             example: JUN-26
+        - name: eixo
+          in: query
+          required: false
+          description: >
+            "caixa" (padrão): soma parcelas cuja data_caixa cai na competência
+            informada (vencimento da fatura, ou data_propria). "competencia":
+            soma todas as parcelas de compras cuja competencia (mês em que a
+            despesa foi decidida) bate com o valor informado, independente de
+            quando o valor efetivamente sai do caixa.
+          schema:
+            type: string
+            enum: [caixa, competencia]
+            default: caixa
       responses:
         "200":
           description: Resumo do dashboard
@@ -1736,6 +1829,14 @@ components:
       schema:
         type: integer
       example: 5
+
+    CartaoId:
+      name: cartaoId
+      in: path
+      required: true
+      schema:
+        type: integer
+      example: 2
 
     DataCaixaDe:
       name: de
@@ -2035,6 +2136,34 @@ components:
                 Se o usuário autenticado é admin em alguma casa compartilhada
                 com o titular deste registro. Presente apenas na listagem.
               example: true
+
+    CartaoCasaVisibilidadeInput:
+      type: object
+      required: [casa_id]
+      properties:
+        casa_id:
+          type: integer
+          example: 1
+        compartilhado:
+          type: boolean
+          default: false
+          example: true
+
+    CartaoCasaVisibilidade:
+      allOf:
+        - $ref: "#/components/schemas/CartaoCasaVisibilidadeInput"
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            cartao_id:
+              type: integer
+              readOnly: true
+              example: 2
+            created_at:
+              type: string
+              format: date-time
 
     CompraInput:
       type: object
@@ -2337,6 +2466,11 @@ components:
     MetaInput:
       type: object
       required: [objetivo]
+      description: >
+        pessoa_id e casa_id são mutuamente exclusivos — informe exatamente um
+        dos dois na criação (não são alteráveis depois). Meta pessoal
+        (pessoa_id) só pode ser criada para o próprio usuário autenticado;
+        meta de casa (casa_id) exige que o usuário seja admin daquela casa.
       properties:
         objetivo:
           type: string
@@ -2355,6 +2489,16 @@ components:
           format: float
           nullable: true
           example: 50000
+        pessoa_id:
+          type: integer
+          nullable: true
+          description: Preencher para meta pessoal. Mutuamente exclusivo com casa_id.
+          example: 7
+        casa_id:
+          type: integer
+          nullable: true
+          description: Preencher para meta de casa. Mutuamente exclusivo com pessoa_id.
+          example: null
 
     Meta:
       allOf:
@@ -2408,18 +2552,18 @@ components:
 
     ConviteInput:
       type: object
-      required: [email, convidado_por_id]
+      required: [email]
       properties:
         email:
           type: string
           format: email
           example: convidado@email.com
-        convidado_por_id:
-          type: integer
-          example: 7
         casa_id:
           type: integer
           nullable: true
+          description: >
+            Se informado, o usuário autenticado precisa ser admin desta casa.
+            Se omitido, o convite é de auto-cadastro (sem casa).
           example: 1
         papel:
           type: string
@@ -2444,6 +2588,8 @@ components:
           example: convidado@email.com
         convidado_por_id:
           type: integer
+          readOnly: true
+          description: Definido automaticamente pelo servidor a partir do usuário autenticado na criação.
           example: 7
         casa_id:
           type: integer
@@ -2457,6 +2603,47 @@ components:
         token:
           type: string
           example: a3f8c2d1e4b7...
+        status:
+          type: string
+          enum: [pendente, aceito, expirado]
+          example: pendente
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-07-25T23:59:59Z"
+        created_at:
+          type: string
+          format: date-time
+
+    ConviteSemToken:
+      type: object
+      description: >
+        Mesma forma de Convite, mas sem o campo token — usado em todas as
+        respostas autenticadas (GET /convites, GET /convites/{id}, POST
+        /convites, aceitar/expirar por id). O token só é exposto via
+        GET /convites/token/{token}, que já exige conhecê-lo de antemão.
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: convidado@email.com
+        convidado_por_id:
+          type: integer
+          readOnly: true
+          example: 7
+        casa_id:
+          type: integer
+          nullable: true
+          example: 1
+        papel:
+          type: string
+          enum: [admin, membro]
+          nullable: true
+          example: membro
         status:
           type: string
           enum: [pendente, aceito, expirado]

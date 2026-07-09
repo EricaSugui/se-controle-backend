@@ -5,18 +5,24 @@ import { autenticar } from '../middleware/auth';
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
 
-router.get('/', async (req, res, next) => {
+router.get('/', autenticar, async (req, res, next) => {
   try {
     const { ativo } = req.query;
-    const params: unknown[] = [];
-    let query = 'SELECT * FROM pessoas';
+    const pessoaId = (req as any).usuario.id;
+    const params: unknown[] = [pessoaId];
+    let query = `
+      SELECT DISTINCT p.*
+      FROM pessoas p
+      JOIN casa_pessoas cp ON cp.pessoa_id = p.id
+      WHERE cp.casa_id IN (SELECT casa_id FROM casa_pessoas WHERE pessoa_id = $1)
+    `;
 
     if (ativo !== undefined) {
       params.push(ativo === 'true');
-      query += ' WHERE ativo = $1';
+      query += ` AND p.ativo = $${params.length}`;
     }
 
-    query += ' ORDER BY nome';
+    query += ' ORDER BY p.nome';
     const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
@@ -49,9 +55,18 @@ router.get('/relacionadas', autenticar, async (req, res, next) => {
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', autenticar, async (req, res, next) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM pessoas WHERE id = $1', [req.params.id]);
+    const pessoaId = (req as any).usuario.id;
+    const { rows } = await pool.query(
+      `SELECT p.* FROM pessoas p
+       WHERE p.id = $1
+         AND (p.id = $2 OR p.id IN (
+           SELECT cp.pessoa_id FROM casa_pessoas cp
+           WHERE cp.casa_id IN (SELECT casa_id FROM casa_pessoas WHERE pessoa_id = $2)
+         ))`,
+      [req.params.id, pessoaId]
+    );
     if (rows.length === 0) return res.status(404).json({ erro: 'Pessoa não encontrada' });
     res.json(rows[0]);
   } catch (err) {
@@ -59,7 +74,7 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', autenticar, async (req, res, next) => {
   try {
     const { nome, email } = req.body;
     if (!nome) return res.status(400).json({ erro: 'nome é obrigatório' });
@@ -74,8 +89,13 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', autenticar, async (req, res, next) => {
   try {
+    const pessoaId = (req as any).usuario.id;
+    if (Number(req.params.id) !== pessoaId) {
+      return res.status(403).json({ erro: 'Você só pode editar seus próprios dados' });
+    }
+
     const { nome, email } = req.body;
     if (!nome) return res.status(400).json({ erro: 'nome é obrigatório' });
 
@@ -90,21 +110,5 @@ router.put('/:id', async (req, res, next) => {
     next(err);
   }
 });
-
-async function setAtivo(req: any, res: any, next: any, ativo: boolean) {
-  try {
-    const { rows } = await pool.query(
-      'UPDATE pessoas SET ativo = $1 WHERE id = $2 RETURNING *',
-      [ativo, req.params.id]
-    );
-    if (rows.length === 0) return res.status(404).json({ erro: 'Pessoa não encontrada' });
-    res.json(rows[0]);
-  } catch (err) {
-    next(err);
-  }
-}
-
-router.patch('/:id/ativar', (req, res, next) => setAtivo(req, res, next, true));
-router.patch('/:id/desativar', (req, res, next) => setAtivo(req, res, next, false));
 
 export default router;
