@@ -18,8 +18,9 @@ tags:
   - name: Formas de Pagamento
   - name: Origens de Receita
   - name: Cartões e Contas
-  - name: Transações
-  - name: Transação Pagadores
+  - name: Compras
+  - name: Compra Pagadores
+  - name: Faturas
   - name: Receitas
   - name: Metas
   - name: Percentual de Custeio
@@ -889,63 +890,96 @@ paths:
           $ref: "#/components/responses/NaoEncontrado"
 
   # -------------------------------------------------------------------
-  # Transações
+  # Compras
   # -------------------------------------------------------------------
-  /transacoes:
+  /compras:
     get:
-      tags: [Transações]
-      summary: Lista transações
+      tags: [Compras]
+      summary: Lista compras
+      description: >
+        Retorna apenas compras de casas das quais o usuário autenticado é
+        membro. Cada item inclui `pode_editar`, verdadeiro se o usuário
+        autenticado registrou a compra (`lancado_por_id`) ou é admin na casa
+        dela.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CompetenciaFiltro"
+        - $ref: "#/components/parameters/DataCaixaDe"
+        - $ref: "#/components/parameters/DataCaixaAte"
       responses:
         "200":
-          description: Lista de transações
+          description: Lista de compras
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Transacao"
+                  $ref: "#/components/schemas/Compra"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
     post:
-      tags: [Transações]
-      summary: Cria uma transação
+      tags: [Compras]
+      summary: Cria uma compra
       description: >
-        Se forma_pagamento for "crédito parcelado" e total_parcelas > 1,
-        cria automaticamente uma transação por parcela nos meses seguintes.
+        `lancado_por_id` é sempre definido como o usuário autenticado,
+        ignorando qualquer valor enviado no corpo. Requer que o usuário seja
+        membro da casa informada em `casa_id`. Cria automaticamente
+        `total_parcelas` parcelas: se `cartao_conta_id` referenciar um cartão
+        de crédito, cada parcela é atribuída a uma fatura (criada sob demanda
+        conforme o dia de fechamento/vencimento do cartão); senão, cada
+        parcela usa `data_propria` (data da compra + N meses).
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/TransacaoInput"
+              $ref: "#/components/schemas/CompraInput"
       responses:
         "201":
-          description: Transação criada (retorna a primeira parcela quando parcelado)
+          description: Compra criada, com as parcelas geradas
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Transacao"
+                $ref: "#/components/schemas/Compra"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
 
-  /transacoes/{id}:
+  /compras/{id}:
     get:
-      tags: [Transações]
-      summary: Busca uma transação pelo id
+      tags: [Compras]
+      summary: Busca uma compra pelo id
+      description: Requer que o usuário autenticado seja membro da casa da compra.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
         "200":
-          description: Transação encontrada
+          description: Compra encontrada
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Transacao"
+                $ref: "#/components/schemas/Compra"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
     put:
-      tags: [Transações]
-      summary: Atualiza uma transação
+      tags: [Compras]
+      summary: Atualiza uma compra
+      description: >
+        Requer que o usuário autenticado tenha registrado a compra
+        (`lancado_por_id`) ou seja admin na casa dela. `lancado_por_id` não é
+        alterável. Apaga e recria todas as parcelas da compra.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       requestBody:
@@ -953,38 +987,81 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/TransacaoInput"
+              $ref: "#/components/schemas/CompraInput"
       responses:
         "200":
-          description: Transação atualizada
+          description: Compra atualizada, com as parcelas recriadas
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Transacao"
+                $ref: "#/components/schemas/Compra"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
     delete:
-      tags: [Transações]
-      summary: Remove uma transação
+      tags: [Compras]
+      summary: Remove uma compra
+      description: >
+        Requer que o usuário autenticado tenha registrado a compra
+        (`lancado_por_id`) ou seja admin na casa dela. Remove em cascata as
+        parcelas e o split de pagadores.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
         "204":
-          description: Transação removida
+          description: Compra removida
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /compras/{id}/parcelas:
+    get:
+      tags: [Compras]
+      summary: Lista as parcelas de uma compra
+      description: >
+        Somente leitura — parcelas são geradas automaticamente na criação/edição
+        da compra. Cada parcela inclui `data_caixa`, a data efetiva em que o
+        valor sai do caixa (vencimento da fatura, quando há cartão de crédito
+        envolvido, ou `data_propria` caso contrário).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Lista de parcelas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Parcela"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
   # -------------------------------------------------------------------
-  # Transação Pagadores
+  # Compra Pagadores
   # -------------------------------------------------------------------
-  /transacoes/{transacaoId}/pagadores:
+  /compras/{compraId}/pagadores:
     get:
-      tags: [Transação Pagadores]
-      summary: Lista pagadores de uma transação
+      tags: [Compra Pagadores]
+      summary: Lista pagadores de uma compra
+      security:
+        - bearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/TransacaoId"
+        - $ref: "#/components/parameters/CompraId"
       responses:
         "200":
           description: Lista de pagadores com nome da pessoa
@@ -993,46 +1070,56 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/TransacaoPagador"
+                  $ref: "#/components/schemas/CompraPagador"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
     post:
-      tags: [Transação Pagadores]
-      summary: Adiciona um pagador a uma transação
+      tags: [Compra Pagadores]
+      summary: Adiciona um pagador a uma compra
+      security:
+        - bearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/TransacaoId"
+        - $ref: "#/components/parameters/CompraId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/TransacaoPagadorInput"
+              $ref: "#/components/schemas/CompraPagadorInput"
       responses:
         "201":
           description: Pagador adicionado
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TransacaoPagador"
+                $ref: "#/components/schemas/CompraPagador"
         "400":
           $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
         "404":
-          description: Transação ou pessoa não encontrada
+          description: Compra ou pessoa não encontrada
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Erro"
         "409":
-          description: Pessoa já registrada como pagadora desta transação
+          description: Pessoa já registrada como pagadora desta compra
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Erro"
 
-  /transacoes/{transacaoId}/pagadores/{pessoaId}:
+  /compras/{compraId}/pagadores/{pessoaId}:
     patch:
-      tags: [Transação Pagadores]
+      tags: [Compra Pagadores]
       summary: Atualiza o percentual de um pagador
+      security:
+        - bearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/TransacaoId"
+        - $ref: "#/components/parameters/CompraId"
         - $ref: "#/components/parameters/PessoaId"
       requestBody:
         required: true
@@ -1052,18 +1139,108 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TransacaoPagador"
+                $ref: "#/components/schemas/CompraPagador"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
     delete:
-      tags: [Transação Pagadores]
-      summary: Remove um pagador de uma transação
+      tags: [Compra Pagadores]
+      summary: Remove um pagador de uma compra
+      security:
+        - bearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/TransacaoId"
+        - $ref: "#/components/parameters/CompraId"
         - $ref: "#/components/parameters/PessoaId"
       responses:
         "204":
           description: Pagador removido
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  # -------------------------------------------------------------------
+  # Faturas
+  # -------------------------------------------------------------------
+  /faturas:
+    get:
+      tags: [Faturas]
+      summary: Lista faturas
+      description: >
+        Retorna apenas faturas de cartões dos quais o usuário autenticado é o
+        titular — não há visibilidade compartilhada por casa, mesmo que o
+        cartão esteja compartilhado.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CartaoContaIdFiltro"
+      responses:
+        "200":
+          description: Lista de faturas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Fatura"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+
+  /faturas/{id}:
+    get:
+      tags: [Faturas]
+      summary: Busca uma fatura pelo id, com suas parcelas
+      description: Requer que o usuário autenticado seja o titular do cartão da fatura.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Fatura encontrada, com as parcelas embutidas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fatura"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+    put:
+      tags: [Faturas]
+      summary: Ajusta as datas de uma fatura
+      description: >
+        Requer que o usuário autenticado seja o titular do cartão da fatura.
+        Não existe criação manual de fatura — ela nasce automaticamente quando
+        a primeira compra do ciclo é lançada. Use este endpoint para corrigir
+        `data_fechamento`/`data_vencimento` quando a realidade diverge da
+        regra (ex.: fechamento caiu em fim de semana e deslizou).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FaturaInput"
+      responses:
+        "200":
+          description: Fatura atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fatura"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
         "404":
           $ref: "#/components/responses/NaoEncontrado"
 
@@ -1480,7 +1657,7 @@ paths:
         "400":
           $ref: "#/components/responses/ErroValidacao"
         "401":
-          $ref: "#/components/responses/NaoAutorizado"
+          $ref: "#/components/responses/NaoAutenticado"
 
   # -------------------------------------------------------------------
   # Fechamento Mensal
@@ -1552,13 +1729,40 @@ components:
         type: integer
       example: 7
 
-    TransacaoId:
-      name: transacaoId
+    CompraId:
+      name: compraId
       in: path
       required: true
       schema:
         type: integer
       example: 5
+
+    DataCaixaDe:
+      name: de
+      in: query
+      required: false
+      description: Filtra compras com pelo menos uma parcela cuja data_caixa seja >= este valor (formato ISO, ex. 2026-06-01)
+      schema:
+        type: string
+        format: date
+
+    DataCaixaAte:
+      name: ate
+      in: query
+      required: false
+      description: Filtra compras com pelo menos uma parcela cuja data_caixa seja <= este valor (formato ISO, ex. 2026-06-30)
+      schema:
+        type: string
+        format: date
+
+    CartaoContaIdFiltro:
+      name: cartao_conta_id
+      in: query
+      required: false
+      description: Filtra faturas de um cartão específico
+      schema:
+        type: integer
+        example: 2
 
     ConviteToken:
       name: token
@@ -1832,23 +2036,15 @@ components:
                 com o titular deste registro. Presente apenas na listagem.
               example: true
 
-    TransacaoInput:
+    CompraInput:
       type: object
-      required: [data, casa_id, pessoa_id, categoria_id, valor_parcela, competencia]
+      required: [casa_id, pessoa_id, categoria_id, data, competencia, valor_parcela]
       properties:
-        data:
-          type: string
-          format: date
-          example: "2026-06-15"
         casa_id:
           type: integer
           example: 1
         pessoa_id:
           type: integer
-          example: 7
-        lancado_por_id:
-          type: integer
-          nullable: true
           example: 7
         categoria_id:
           type: integer
@@ -1865,35 +2061,122 @@ components:
           type: integer
           nullable: true
           example: 1
-        parcela_atual:
-          type: integer
-          nullable: true
-          example: 1
+        data:
+          type: string
+          format: date
+          example: "2026-06-15"
+        competencia:
+          type: string
+          description: >
+            Mês em que a despesa foi decidida/categorizada (formato MES-AA),
+            independente de quando ela efetivamente sai do caixa (ver
+            `Parcela.data_caixa`).
+          example: JUN-26
         total_parcelas:
           type: integer
-          nullable: true
-          example: 9
+          default: 1
+          minimum: 1
+          example: 3
         valor_parcela:
           type: number
           format: float
+          description: Valor de cada parcela (todas as parcelas têm o mesmo valor).
           example: 149.40
-        competencia:
-          type: string
-          example: JUN-26
 
-    Transacao:
+    Compra:
       allOf:
-        - $ref: "#/components/schemas/TransacaoInput"
+        - $ref: "#/components/schemas/CompraInput"
         - type: object
           properties:
             id:
               type: integer
               example: 1
+            lancado_por_id:
+              type: integer
+              nullable: true
+              readOnly: true
+              description: Definido automaticamente pelo servidor a partir do usuário autenticado na criação; não é alterável.
+              example: 7
+            pessoa_nome:
+              type: string
+              nullable: true
+              readOnly: true
+              example: Erica
+            categoria_nome:
+              type: string
+              nullable: true
+              readOnly: true
+              example: Roupas
+            cartao_conta_nome:
+              type: string
+              nullable: true
+              readOnly: true
+              example: Itaú Signature
+            pode_editar:
+              type: boolean
+              readOnly: true
+              description: Se o usuário autenticado registrou a compra ou é admin na casa dela.
+              example: true
+            parcelas:
+              type: array
+              readOnly: true
+              description: Presente apenas nas respostas de criação (POST) e edição (PUT).
+              items:
+                $ref: "#/components/schemas/Parcela"
             created_at:
               type: string
               format: date-time
 
-    TransacaoPagadorInput:
+    Parcela:
+      type: object
+      description: Somente leitura — gerada automaticamente pelo servidor a partir da compra.
+      properties:
+        id:
+          type: integer
+          example: 1
+        compra_id:
+          type: integer
+          example: 1
+        numero_parcela:
+          type: integer
+          example: 1
+        valor:
+          type: number
+          format: float
+          example: 149.40
+        fatura_id:
+          type: integer
+          nullable: true
+          description: Preenchido quando a compra usou cartão de crédito.
+          example: 9
+        data_propria:
+          type: string
+          format: date
+          nullable: true
+          description: Preenchido quando a compra não usou cartão de crédito.
+          example: "2026-07-15"
+        data_caixa:
+          type: string
+          format: date
+          readOnly: true
+          description: Data efetiva de saída do valor — vencimento da fatura, quando há, ou data_propria.
+          example: "2026-07-25"
+        fatura_mes_referencia:
+          type: string
+          nullable: true
+          readOnly: true
+          example: JUL-26
+        fatura_data_vencimento:
+          type: string
+          format: date
+          nullable: true
+          readOnly: true
+          example: "2026-07-25"
+        created_at:
+          type: string
+          format: date-time
+
+    CompraPagadorInput:
       type: object
       required: [pessoa_id]
       properties:
@@ -1906,7 +2189,7 @@ components:
           nullable: true
           example: 60
 
-    TransacaoPagador:
+    CompraPagador:
       type: object
       properties:
         id:
@@ -1926,6 +2209,54 @@ components:
         nome:
           type: string
           example: Erica
+
+    FaturaInput:
+      type: object
+      required: [data_fechamento, data_vencimento]
+      properties:
+        data_abertura:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-06-20"
+        data_fechamento:
+          type: string
+          format: date
+          example: "2026-07-19"
+        data_vencimento:
+          type: string
+          format: date
+          example: "2026-07-25"
+
+    Fatura:
+      allOf:
+        - $ref: "#/components/schemas/FaturaInput"
+        - type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            cartao_conta_id:
+              type: integer
+              readOnly: true
+              example: 2
+            mes_referencia:
+              type: string
+              readOnly: true
+              description: >
+                Mês de vencimento da fatura (formato MES-AA). Definido
+                automaticamente na criação lazy (junto com a primeira compra
+                do ciclo), não é alterável.
+              example: JUL-26
+            parcelas:
+              type: array
+              readOnly: true
+              description: Presente apenas na resposta de GET /faturas/{id}.
+              items:
+                $ref: "#/components/schemas/Parcela"
+            created_at:
+              type: string
+              format: date-time
 
     ReceitaInput:
       type: object

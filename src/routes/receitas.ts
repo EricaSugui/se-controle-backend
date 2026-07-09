@@ -5,8 +5,7 @@ import { autenticar } from '../middleware/auth';
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
 
-const SELECT_BASE = `
-  SELECT r.*, p.nome AS pessoa_nome, o.nome AS origem_nome
+const FROM_BASE = `
   FROM receitas r
   LEFT JOIN pessoas p ON p.id = r.pessoa_id
   LEFT JOIN origens_receita o ON o.id = r.origem_id
@@ -48,7 +47,8 @@ router.get('/:id', autenticar, async (req, res, next) => {
   try {
     const pessoaId = (req as any).usuario.id;
     const { rows } = await pool.query(
-      `${SELECT_BASE}, ${podeEditarExpr(2)}
+      `SELECT r.*, p.nome AS pessoa_nome, o.nome AS origem_nome, ${podeEditarExpr(2)}
+       ${FROM_BASE}
        WHERE r.id = $1
          AND r.casa_id IN (SELECT casa_id FROM casa_pessoas WHERE pessoa_id = $2)`,
       [req.params.id, pessoaId]

@@ -1,4 +1,5 @@
 import pool from '../db';
+import { competenciaParaData, adicionarMesesCompetencia } from '../utils/competencia';
 
 interface DashboardCasa {
   id: number;
@@ -25,10 +26,15 @@ export async function calcularResumo(competencia: string, pessoaId: number): Pro
     [pessoaId]
   );
 
+  const inicioCaixa = competenciaParaData(competencia);
+  const fimCaixa = competenciaParaData(adicionarMesesCompetencia(competencia, 1));
+
   const { rows: gastosRows } = await pool.query(
-    `SELECT casa_id, COALESCE(SUM(valor_parcela), 0) AS total
-     FROM transacoes WHERE competencia = $1 GROUP BY casa_id`,
-    [competencia]
+    `SELECT casa_id, COALESCE(SUM(valor), 0) AS total
+     FROM parcelas_com_caixa
+     WHERE data_caixa >= $1 AND data_caixa < $2
+     GROUP BY casa_id`,
+    [inicioCaixa, fimCaixa]
   );
   const gastosPorCasa: Record<number, number> = {};
   gastosRows.forEach((row: any) => { gastosPorCasa[row.casa_id] = Number(row.total); });
