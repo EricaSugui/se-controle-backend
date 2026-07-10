@@ -11,24 +11,14 @@ router.get('/', autenticar, async (req, res, next) => {
     const pessoaId = (req as any).usuario.id;
     const params: unknown[] = [pessoaId];
     let query = `
-      SELECT cc.*,
-        EXISTS (
-          SELECT 1
-          FROM casa_pessoas cp_titular
-          JOIN casa_pessoas cp_user ON cp_user.casa_id = cp_titular.casa_id
-          WHERE cp_titular.pessoa_id = cc.titular_id
-            AND cp_user.pessoa_id = $1
-            AND cp_user.papel = 'admin'
-        ) AS pode_editar
+      SELECT cc.*, (cc.titular_id = $1) AS pode_editar
       FROM cartoes_contas cc
-      WHERE cc.titular_id IS NOT NULL
-        AND EXISTS (
-          SELECT 1
-          FROM casa_pessoas cp_titular
-          JOIN casa_pessoas cp_user ON cp_user.casa_id = cp_titular.casa_id
-          WHERE cp_titular.pessoa_id = cc.titular_id
-            AND cp_user.pessoa_id = $1
-        )
+      WHERE cc.titular_id = $1
+         OR EXISTS (
+           SELECT 1 FROM cartao_casa_visibilidade v
+           WHERE v.cartao_id = cc.id AND v.compartilhado = true
+             AND v.casa_id IN (SELECT casa_id FROM casa_pessoas WHERE pessoa_id = $1)
+         )
     `;
 
     if (ativo !== undefined) {
@@ -44,12 +34,28 @@ router.get('/', autenticar, async (req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', autenticar, async (req, res, next) => {
   try {
+    const pessoaId = (req as any).usuario.id;
     const { nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento } = req.body;
 
     if (!nome || !tipo) return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
     if (tipo !== 'credito' && tipo !== 'debito') return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
+
+    if (titular_id !== undefined && titular_id !== null && Number(titular_id) !== pessoaId) {
+      const { rows: permRows } = await pool.query(
+        `SELECT EXISTS (
+           SELECT 1
+           FROM casa_pessoas cp_titular
+           JOIN casa_pessoas cp_user ON cp_user.casa_id = cp_titular.casa_id
+           WHERE cp_titular.pessoa_id = $1
+             AND cp_user.pessoa_id = $2
+             AND cp_user.papel = 'admin'
+         ) AS pode`,
+        [titular_id, pessoaId]
+      );
+      if (!permRows[0].pode) return res.status(403).json({ erro: 'Você não pode atribuir este cartão/conta a essa pessoa' });
+    }
 
     const { rows } = await pool.query(
       `INSERT INTO cartoes_contas (nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento)
@@ -62,29 +68,15 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-// Confere se `pessoaId` é admin em alguma casa compartilhada com o titular do registro.
+// Confere se `pessoaId` é o titular do registro — mirror estrito da RLS
+// (cartoes_contas_update_titular), sem fallback de admin de casa compartilhada.
 async function autorizarGerenciamento(
   pessoaId: number,
   cartaoContaId: string
 ): Promise<'ok' | 'nao_encontrado' | 'sem_permissao'> {
   const { rows } = await pool.query('SELECT titular_id FROM cartoes_contas WHERE id = $1', [cartaoContaId]);
   if (rows.length === 0) return 'nao_encontrado';
-
-  const titularId = rows[0].titular_id;
-  if (titularId === null) return 'sem_permissao';
-
-  const { rows: permRows } = await pool.query(
-    `SELECT EXISTS (
-       SELECT 1
-       FROM casa_pessoas cp_titular
-       JOIN casa_pessoas cp_user ON cp_user.casa_id = cp_titular.casa_id
-       WHERE cp_titular.pessoa_id = $1
-         AND cp_user.pessoa_id = $2
-         AND cp_user.papel = 'admin'
-     ) AS pode`,
-    [titularId, pessoaId]
-  );
-  return permRows[0].pode ? 'ok' : 'sem_permissao';
+  return rows[0].titular_id === pessoaId ? 'ok' : 'sem_permissao';
 }
 
 router.put('/:id', autenticar, async (req, res, next) => {

@@ -1,12 +1,35 @@
 import { Router } from 'express';
 import pool from '../db';
+import { autenticar } from '../middleware/auth';
 
 const router = Router({ mergeParams: true });
 
-router.get('/', async (req, res, next) => {
+async function participaCasa(pessoaId: number, casaId: string): Promise<boolean> {
+  const { rows } = await pool.query(
+    'SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2',
+    [casaId, pessoaId]
+  );
+  return rows.length > 0;
+}
+
+async function adminCasa(pessoaId: number, casaId: string): Promise<boolean> {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2 AND papel = 'admin'`,
+    [casaId, pessoaId]
+  );
+  return rows.length > 0;
+}
+
+router.get('/', autenticar, async (req, res, next) => {
   try {
+    const pessoaId = (req as any).usuario.id;
+    const casaId = (req.params as any).casaId;
+    if (!(await participaCasa(pessoaId, casaId))) {
+      return res.status(403).json({ erro: 'Você não participa desta casa' });
+    }
+
     const { competencia, pessoa_id } = req.query;
-    const params: unknown[] = [(req.params as any).casaId];
+    const params: unknown[] = [casaId];
     let query = 'SELECT * FROM percentuais_custeio WHERE casa_id = $1';
 
     if (competencia !== undefined) {
@@ -27,8 +50,14 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', autenticar, async (req, res, next) => {
   try {
+    const pessoaId = (req as any).usuario.id;
+    const casaId = (req.params as any).casaId;
+    if (!(await adminCasa(pessoaId, casaId))) {
+      return res.status(403).json({ erro: 'Apenas admins da casa podem definir percentuais de custeio' });
+    }
+
     const { pessoa_id, competencia, percentual } = req.body;
 
     if (!pessoa_id || !competencia || percentual === undefined) {
@@ -41,7 +70,7 @@ router.post('/', async (req, res, next) => {
        ON CONFLICT (casa_id, pessoa_id, competencia)
        DO UPDATE SET percentual = EXCLUDED.percentual
        RETURNING *`,
-      [(req.params as any).casaId, pessoa_id, competencia, percentual]
+      [casaId, pessoa_id, competencia, percentual]
     );
     res.status(201).json(rows[0]);
   } catch (err) {

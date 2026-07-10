@@ -2,20 +2,34 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import pool from '../db';
 import { getSupabaseUser, inviteSupabaseUser } from '../config/supabase';
+import { autenticar } from '../middleware/auth';
 
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
 
-router.get('/', async (req, res, next) => {
-  try {
-    const { status, email } = req.query;
-    const params: unknown[] = [];
-    let query = 'SELECT * FROM convites';
-    const conditions: string[] = [];
+const SELECT_SEM_TOKEN = 'id, email, convidado_por_id, casa_id, papel, status, expires_at, created_at';
 
-    if (status !== undefined) { params.push(status); conditions.push(`status = $${params.length}`); }
-    if (email !== undefined) { params.push(email); conditions.push(`email = $${params.length}`); }
-    if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
+async function adminCasa(pessoaId: number, casaId: number): Promise<boolean> {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2 AND papel = 'admin'`,
+    [casaId, pessoaId]
+  );
+  return rows.length > 0;
+}
+
+router.get('/', autenticar, async (req, res, next) => {
+  try {
+    const pessoaId = (req as any).usuario.id;
+    const { status, email } = req.query;
+    const params: unknown[] = [pessoaId];
+    let query = `SELECT ${SELECT_SEM_TOKEN} FROM convites
+      WHERE (
+        (casa_id IS NOT NULL AND casa_id IN (SELECT casa_id FROM casa_pessoas WHERE pessoa_id = $1 AND papel = 'admin'))
+        OR (casa_id IS NULL AND convidado_por_id = $1)
+      )`;
+
+    if (status !== undefined) { params.push(status); query += ` AND status = $${params.length}`; }
+    if (email !== undefined) { params.push(email); query += ` AND email = $${params.length}`; }
     query += ' ORDER BY created_at DESC';
 
     const { rows } = await pool.query(query, params);
@@ -86,27 +100,41 @@ router.patch('/token/:token/aceitar', async (req, res, next) => {
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', autenticar, async (req, res, next) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM convites WHERE id = $1', [req.params.id]);
+    const pessoaId = (req as any).usuario.id;
+    const { rows } = await pool.query(`SELECT ${SELECT_SEM_TOKEN} FROM convites WHERE id = $1`, [req.params.id]);
     if (rows.length === 0) return res.status(404).json({ erro: 'Convite não encontrado' });
-    res.json(rows[0]);
+
+    const convite = rows[0];
+    const autorizado = convite.casa_id
+      ? await adminCasa(pessoaId, convite.casa_id)
+      : convite.convidado_por_id === pessoaId;
+    if (!autorizado) return res.status(404).json({ erro: 'Convite não encontrado' });
+
+    res.json(convite);
   } catch (err) {
     next(err);
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', autenticar, async (req, res, next) => {
   try {
-    const { email, convidado_por_id, casa_id, papel, expires_at } = req.body;
+    const pessoaId = (req as any).usuario.id;
+    const { email, casa_id, papel, expires_at } = req.body;
 
-    if (!email || !convidado_por_id) return res.status(400).json({ erro: 'email e convidado_por_id são obrigatórios' });
+    if (!email) return res.status(400).json({ erro: 'email é obrigatório' });
     if (papel !== undefined && papel !== 'admin' && papel !== 'membro') return res.status(400).json({ erro: "papel deve ser 'admin' ou 'membro'" });
 
+    if (casa_id !== undefined && casa_id !== null && !(await adminCasa(pessoaId, casa_id))) {
+      return res.status(403).json({ erro: 'Apenas admins da casa podem convidar para ela' });
+    }
+
     const token = crypto.randomBytes(32).toString('hex');
+    // convidado_por_id é sempre o usuário autenticado, nunca o valor enviado pelo cliente
     const { rows } = await pool.query(
       `INSERT INTO convites (email, convidado_por_id, casa_id, papel, token, expires_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [email, convidado_por_id, orNull(casa_id), orNull(papel), token, orNull(expires_at)]
+      [email, pessoaId, orNull(casa_id), orNull(papel), token, orNull(expires_at)]
     );
 
     const convite = rows[0];
@@ -117,7 +145,7 @@ router.post('/', async (req, res, next) => {
       const { rows: casaRows } = await pool.query('SELECT nome FROM casas WHERE id = $1', [casa_id]);
       if (casaRows.length > 0) metadata.casa_nome = casaRows[0].nome;
     }
-    const { rows: convidadoPorRows } = await pool.query('SELECT nome FROM pessoas WHERE id = $1', [convidado_por_id]);
+    const { rows: convidadoPorRows } = await pool.query('SELECT nome FROM pessoas WHERE id = $1', [pessoaId]);
     if (convidadoPorRows.length > 0) metadata.convidado_por_nome = convidadoPorRows[0].nome;
     if (papel) metadata.papel = papel === 'admin' ? 'administrador(a)' : 'membro';
 
@@ -128,16 +156,25 @@ router.post('/', async (req, res, next) => {
       throw inviteErr;
     }
 
-    res.status(201).json(convite);
+    const { token: _token, ...conviteSemToken } = convite;
+    res.status(201).json(conviteSemToken);
   } catch (err) {
     next(err);
   }
 });
 
-router.patch('/:id/aceitar', async (req, res, next) => {
+router.patch('/:id/aceitar', autenticar, async (req, res, next) => {
   try {
+    const pessoaId = (req as any).usuario.id;
+    const { rows: conviteRows } = await pool.query('SELECT casa_id, convidado_por_id FROM convites WHERE id = $1', [req.params.id]);
+    if (conviteRows.length === 0) return res.status(404).json({ erro: 'Convite não encontrado' });
+
+    const { casa_id, convidado_por_id } = conviteRows[0];
+    const autorizado = casa_id ? await adminCasa(pessoaId, casa_id) : convidado_por_id === pessoaId;
+    if (!autorizado) return res.status(403).json({ erro: 'Você não pode gerenciar este convite' });
+
     const { rows } = await pool.query(
-      `UPDATE convites SET status = 'aceito' WHERE id = $1 AND status = 'pendente' RETURNING *`,
+      `UPDATE convites SET status = 'aceito' WHERE id = $1 AND status = 'pendente' RETURNING ${SELECT_SEM_TOKEN}`,
       [req.params.id]
     );
     if (rows.length === 0) return res.status(404).json({ erro: 'Convite não encontrado ou não está pendente' });
@@ -147,10 +184,18 @@ router.patch('/:id/aceitar', async (req, res, next) => {
   }
 });
 
-router.patch('/:id/expirar', async (req, res, next) => {
+router.patch('/:id/expirar', autenticar, async (req, res, next) => {
   try {
+    const pessoaId = (req as any).usuario.id;
+    const { rows: conviteRows } = await pool.query('SELECT casa_id, convidado_por_id FROM convites WHERE id = $1', [req.params.id]);
+    if (conviteRows.length === 0) return res.status(404).json({ erro: 'Convite não encontrado' });
+
+    const { casa_id, convidado_por_id } = conviteRows[0];
+    const autorizado = casa_id ? await adminCasa(pessoaId, casa_id) : convidado_por_id === pessoaId;
+    if (!autorizado) return res.status(403).json({ erro: 'Você não pode gerenciar este convite' });
+
     const { rows } = await pool.query(
-      `UPDATE convites SET status = 'expirado' WHERE id = $1 AND status = 'pendente' RETURNING *`,
+      `UPDATE convites SET status = 'expirado' WHERE id = $1 AND status = 'pendente' RETURNING ${SELECT_SEM_TOKEN}`,
       [req.params.id]
     );
     if (rows.length === 0) return res.status(404).json({ erro: 'Convite não encontrado ou não está pendente' });
