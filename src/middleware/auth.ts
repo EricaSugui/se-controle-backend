@@ -28,3 +28,11 @@ export async function autenticar(req: Request, res: Response, next: NextFunction
   (req as any).usuario = rows[0];
   next();
 }
+
+export function adminSistema(req: Request, res: Response, next: NextFunction): void {
+  if (!(req as any).usuario?.admin_sistema) {
+    res.status(403).json({ erro: 'Apenas admins do sistema podem executar esta ação' });
+    return;
+  }
+  next();
+}
