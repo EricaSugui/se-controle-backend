@@ -107,13 +107,20 @@ const FROM_BASE = `
   LEFT JOIN cartoes_contas cc ON cc.id = c.cartao_conta_id
 `;
 
+// A tabela compras não armazena valor_parcela (vive nas parcelas, todas com o
+// mesmo valor) — o contrato expõe o campo em Compra, então derivamos aqui.
+const VALOR_PARCELA_EXPR = `
+  (SELECT p2.valor FROM parcelas p2 WHERE p2.compra_id = c.id ORDER BY p2.numero_parcela LIMIT 1) AS valor_parcela
+`;
+
 router.get('/', autenticar, async (req, res, next) => {
   try {
     const { competencia, de, ate } = req.query;
     const pessoaId = (req as any).usuario.id;
     const params: unknown[] = [pessoaId];
     let query = `
-      SELECT c.*, p.nome AS pessoa_nome, cat.nome AS categoria_nome, cc.nome AS cartao_conta_nome, ${podeEditarExpr(1)}
+      SELECT c.*, p.nome AS pessoa_nome, cat.nome AS categoria_nome, cc.nome AS cartao_conta_nome,
+             ${VALOR_PARCELA_EXPR}, ${podeEditarExpr(1)}
       ${FROM_BASE}
       WHERE c.casa_id IN (SELECT casa_id FROM casa_pessoas WHERE pessoa_id = $1)
     `;
@@ -145,7 +152,8 @@ router.get('/:id', autenticar, async (req, res, next) => {
   try {
     const pessoaId = (req as any).usuario.id;
     const { rows } = await pool.query(
-      `SELECT c.*, p.nome AS pessoa_nome, cat.nome AS categoria_nome, cc.nome AS cartao_conta_nome, ${podeEditarExpr(2)}
+      `SELECT c.*, p.nome AS pessoa_nome, cat.nome AS categoria_nome, cc.nome AS cartao_conta_nome,
+              ${VALOR_PARCELA_EXPR}, ${podeEditarExpr(2)}
        ${FROM_BASE}
        WHERE c.id = $1
          AND c.casa_id IN (SELECT casa_id FROM casa_pessoas WHERE pessoa_id = $2)`,
@@ -224,7 +232,7 @@ router.post('/', autenticar, async (req, res, next) => {
       const parcelas = await criarParcelas(client, compra.id, data, orNull(cartao_conta_id), totalParcelas, valor_parcela);
 
       await client.query('COMMIT');
-      res.status(201).json({ ...compra, parcelas });
+      res.status(201).json({ ...compra, valor_parcela, parcelas });
     } catch (err) {
       await client.query('ROLLBACK');
       if (err instanceof ErroValidacaoCompra) {
@@ -300,7 +308,7 @@ router.put('/:id', autenticar, async (req, res, next) => {
       const parcelas = await criarParcelas(client, compra.id, data, orNull(cartao_conta_id), totalParcelas, valor_parcela);
 
       await client.query('COMMIT');
-      res.json({ ...compra, parcelas });
+      res.json({ ...compra, valor_parcela, parcelas });
     } catch (err) {
       await client.query('ROLLBACK');
       if (err instanceof ErroValidacaoCompra) {
