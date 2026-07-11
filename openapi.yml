@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: SeControle - Controle Financeiro Familiar API
   description: API para gerenciar transações, receitas, metas e cadastros de apoio do controle financeiro familiar.
-  version: "3.0.0"
+  version: "3.1.0"
 
 servers:
   - url: http://localhost:3000
@@ -553,8 +553,8 @@ paths:
       tags: [Categorias]
       summary: Lista categorias
       description: >
-        Somente leitura — categorias são cadastradas via backend/seed, não há
-        criação/edição via API.
+        Leitura aberta a qualquer usuário autenticado. Escrita restrita a
+        admins do sistema (pessoas com admin_sistema = true).
       security:
         - bearerAuth: []
       parameters:
@@ -570,6 +570,120 @@ paths:
                   $ref: "#/components/schemas/Categoria"
         "401":
           $ref: "#/components/responses/NaoAutenticado"
+    post:
+      tags: [Categorias]
+      summary: Cria uma categoria
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "201":
+          description: Categoria criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Categoria"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  /categorias/{id}:
+    put:
+      tags: [Categorias]
+      summary: Atualiza o nome de uma categoria
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "200":
+          description: Categoria atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Categoria"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  /categorias/{id}/ativar:
+    patch:
+      tags: [Categorias]
+      summary: Ativa uma categoria
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Categoria ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Categoria"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /categorias/{id}/desativar:
+    patch:
+      tags: [Categorias]
+      summary: Desativa uma categoria
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Categoria desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Categoria"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
 
   # -------------------------------------------------------------------
   # Formas de Pagamento
@@ -579,8 +693,8 @@ paths:
       tags: [Formas de Pagamento]
       summary: Lista formas de pagamento
       description: >
-        Somente leitura — formas de pagamento são cadastradas via backend/seed,
-        não há criação/edição via API.
+        Leitura aberta a qualquer usuário autenticado. Escrita restrita a
+        admins do sistema (pessoas com admin_sistema = true).
       security:
         - bearerAuth: []
       parameters:
@@ -596,6 +710,120 @@ paths:
                   $ref: "#/components/schemas/FormaPagamento"
         "401":
           $ref: "#/components/responses/NaoAutenticado"
+    post:
+      tags: [Formas de Pagamento]
+      summary: Cria uma forma de pagamento
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "201":
+          description: Forma de pagamento criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormaPagamento"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  /formas-pagamento/{id}:
+    put:
+      tags: [Formas de Pagamento]
+      summary: Atualiza o nome de uma forma de pagamento
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "200":
+          description: Forma de pagamento atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormaPagamento"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  /formas-pagamento/{id}/ativar:
+    patch:
+      tags: [Formas de Pagamento]
+      summary: Ativa uma forma de pagamento
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Forma de pagamento ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormaPagamento"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /formas-pagamento/{id}/desativar:
+    patch:
+      tags: [Formas de Pagamento]
+      summary: Desativa uma forma de pagamento
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Forma de pagamento desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormaPagamento"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
 
   # -------------------------------------------------------------------
   # Origens de Receita
@@ -605,8 +833,8 @@ paths:
       tags: [Origens de Receita]
       summary: Lista origens de receita
       description: >
-        Somente leitura — origens de receita são cadastradas via backend/seed,
-        não há criação/edição via API.
+        Leitura aberta a qualquer usuário autenticado. Escrita restrita a
+        admins do sistema (pessoas com admin_sistema = true).
       security:
         - bearerAuth: []
       parameters:
@@ -622,6 +850,120 @@ paths:
                   $ref: "#/components/schemas/OrigemReceita"
         "401":
           $ref: "#/components/responses/NaoAutenticado"
+    post:
+      tags: [Origens de Receita]
+      summary: Cria uma origem de receita
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "201":
+          description: Origem de receita criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrigemReceita"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  /origens-receita/{id}:
+    put:
+      tags: [Origens de Receita]
+      summary: Atualiza o nome de uma origem de receita
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NomeInput"
+      responses:
+        "200":
+          description: Origem de receita atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrigemReceita"
+        "400":
+          $ref: "#/components/responses/ErroValidacao"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+
+  /origens-receita/{id}/ativar:
+    patch:
+      tags: [Origens de Receita]
+      summary: Ativa uma origem de receita
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Origem de receita ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrigemReceita"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
+
+  /origens-receita/{id}/desativar:
+    patch:
+      tags: [Origens de Receita]
+      summary: Desativa uma origem de receita
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Origem de receita desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrigemReceita"
+        "401":
+          $ref: "#/components/responses/NaoAutenticado"
+        "403":
+          $ref: "#/components/responses/SemPermissao"
+        "404":
+          $ref: "#/components/responses/NaoEncontrado"
 
   # -------------------------------------------------------------------
   # Cartões e Contas
@@ -1974,6 +2316,13 @@ components:
         ativo:
           type: boolean
           example: true
+        admin_sistema:
+          type: boolean
+          description: >
+            Papel global de admin do sistema — permite gerenciar as tabelas de
+            referência (categorias, formas de pagamento, origens de receita).
+            Diferente de admin de casa (casa_pessoas.papel).
+          example: false
         created_at:
           type: string
           format: date-time
