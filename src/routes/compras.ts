@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { PoolClient } from 'pg';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
-import { adicionarMesesCompetencia, adicionarMesesData } from '../utils/competencia';
+import {
+  adicionarMesesCompetencia, adicionarMesesData, competenciaParaData, dataParaCompetencia, mesesEntre,
+} from '../utils/competencia';
 import { calcularDatasFatura, calcularMesReferenciaFatura } from '../utils/fatura';
 import { ehNumeroValido } from '../utils/numero';
 
@@ -101,6 +103,59 @@ async function criarParcelas(
   return parcelas;
 }
 
+// Valida o vínculo compra → despesa fixa e resolve a competencia_referencia
+// efetiva (default: a competência da própria compra).
+async function validarVinculoDespesaFixa(
+  despesaFixaId: unknown,
+  competenciaReferencia: unknown,
+  casaId: unknown,
+  pessoaCompraId: unknown,
+  competenciaCompra: string
+): Promise<{ despesaFixaId: number | null; competenciaReferencia: string | null }> {
+  if (despesaFixaId === undefined || despesaFixaId === null) {
+    if (competenciaReferencia !== undefined && competenciaReferencia !== null) {
+      throw new ErroValidacaoCompra('competencia_referencia exige despesa_fixa_id');
+    }
+    return { despesaFixaId: null, competenciaReferencia: null };
+  }
+
+  const { rows } = await pool.query(
+    `SELECT id, casa_id, pessoa_id, periodicidade,
+            vigente_desde::text AS vigente_desde, vigente_ate::text AS vigente_ate
+     FROM despesas_fixas WHERE id = $1`,
+    [despesaFixaId]
+  );
+  if (rows.length === 0) throw new ErroValidacaoCompra('Despesa fixa não encontrada');
+  const despesa = rows[0];
+
+  const escopoCompativel = despesa.casa_id !== null
+    ? despesa.casa_id === Number(casaId)
+    : despesa.pessoa_id === Number(pessoaCompraId);
+  if (!escopoCompativel) {
+    throw new ErroValidacaoCompra('despesa fixa não pertence ao escopo desta compra (casa ou pessoa diferente)');
+  }
+
+  const referencia = (competenciaReferencia ?? competenciaCompra) as string;
+  try {
+    competenciaParaData(referencia);
+  } catch {
+    throw new ErroValidacaoCompra(`competencia_referencia inválida: ${referencia}`);
+  }
+
+  const competenciaInicio = dataParaCompetencia(despesa.vigente_desde);
+  const mesesDesdeInicio = mesesEntre(competenciaInicio, referencia);
+  const foraDoFim = despesa.vigente_ate !== null && mesesEntre(referencia, dataParaCompetencia(despesa.vigente_ate)) < 0;
+  if (mesesDesdeInicio < 0 || foraDoFim) {
+    throw new ErroValidacaoCompra('competencia_referencia fora da vigência da despesa fixa');
+  }
+
+  if (despesa.periodicidade === 'anual' && mesesDesdeInicio % 12 !== 0) {
+    throw new ErroValidacaoCompra('para despesa fixa anual, competencia_referencia deve usar o mês de início da vigência');
+  }
+
+  return { despesaFixaId: despesa.id, competenciaReferencia: referencia };
+}
+
 const FROM_BASE = `
   FROM compras c
   LEFT JOIN pessoas p ON p.id = c.pessoa_id
@@ -116,7 +171,7 @@ const VALOR_PARCELA_EXPR = `
 
 router.get('/', autenticar, async (req, res, next) => {
   try {
-    const { competencia, de, ate } = req.query;
+    const { competencia, de, ate, despesa_fixa_id } = req.query;
     const pessoaId = (req as any).usuario.id;
     const params: unknown[] = [pessoaId];
     let query = `
@@ -125,6 +180,11 @@ router.get('/', autenticar, async (req, res, next) => {
       ${FROM_BASE}
       WHERE c.casa_id IN (SELECT casa_id FROM casa_pessoas WHERE pessoa_id = $1)
     `;
+
+    if (despesa_fixa_id !== undefined) {
+      params.push(despesa_fixa_id);
+      query += ` AND c.despesa_fixa_id = $${params.length}`;
+    }
 
     if (competencia !== undefined) {
       params.push(competencia);
@@ -197,6 +257,7 @@ router.post('/', autenticar, async (req, res, next) => {
     const {
       casa_id, pessoa_id, categoria_id, descricao, cartao_conta_id,
       forma_pagamento_id, data, competencia, total_parcelas, valor_parcela,
+      despesa_fixa_id, competencia_referencia,
     } = req.body;
     const pessoaId = (req as any).usuario.id;
 
@@ -222,14 +283,18 @@ router.post('/', autenticar, async (req, res, next) => {
     try {
       await client.query('BEGIN');
 
+      const vinculo = await validarVinculoDespesaFixa(despesa_fixa_id, competencia_referencia, casa_id, pessoa_id, competencia);
+
       // lancado_por_id é sempre o usuário autenticado, nunca o valor enviado pelo cliente
       const { rows: compraRows } = await client.query(
         `INSERT INTO compras
-           (casa_id, pessoa_id, lancado_por_id, categoria_id, descricao, cartao_conta_id, forma_pagamento_id, data, competencia, total_parcelas)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+           (casa_id, pessoa_id, lancado_por_id, categoria_id, descricao, cartao_conta_id, forma_pagamento_id, data, competencia, total_parcelas,
+            despesa_fixa_id, competencia_referencia)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
         [
           casa_id, pessoa_id, pessoaId, categoria_id, orNull(descricao),
           orNull(cartao_conta_id), orNull(forma_pagamento_id), data, competencia, totalParcelas,
+          vinculo.despesaFixaId, vinculo.competenciaReferencia,
         ]
       );
       const compra = compraRows[0];
@@ -282,6 +347,7 @@ router.put('/:id', autenticar, async (req, res, next) => {
     const {
       casa_id, pessoa_id, categoria_id, descricao, cartao_conta_id,
       forma_pagamento_id, data, competencia, total_parcelas, valor_parcela,
+      despesa_fixa_id, competencia_referencia,
     } = req.body;
 
     if (!casa_id || !pessoa_id || !categoria_id || !data || !competencia || valor_parcela === undefined) {
@@ -300,15 +366,19 @@ router.put('/:id', autenticar, async (req, res, next) => {
     try {
       await client.query('BEGIN');
 
+      const vinculo = await validarVinculoDespesaFixa(despesa_fixa_id, competencia_referencia, casa_id, pessoa_id, competencia);
+
       // lancado_por_id não é alterável — permanece com quem registrou originalmente
       const { rows: compraRows } = await client.query(
         `UPDATE compras
          SET casa_id = $1, pessoa_id = $2, categoria_id = $3, descricao = $4, cartao_conta_id = $5,
-             forma_pagamento_id = $6, data = $7, competencia = $8, total_parcelas = $9
-         WHERE id = $10 RETURNING *`,
+             forma_pagamento_id = $6, data = $7, competencia = $8, total_parcelas = $9,
+             despesa_fixa_id = $10, competencia_referencia = $11
+         WHERE id = $12 RETURNING *`,
         [
           casa_id, pessoa_id, categoria_id, orNull(descricao), orNull(cartao_conta_id),
-          orNull(forma_pagamento_id), data, competencia, totalParcelas, req.params.id,
+          orNull(forma_pagamento_id), data, competencia, totalParcelas,
+          vinculo.despesaFixaId, vinculo.competenciaReferencia, req.params.id,
         ]
       );
       const compra = compraRows[0];
