@@ -1,9 +1,17 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
+import { ehNumeroValido } from '../utils/numero';
 
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
+
+function validarValoresMeta(valor_atual: unknown, meta: unknown, falta: unknown): string | null {
+  if (valor_atual !== undefined && valor_atual !== null && !ehNumeroValido(valor_atual)) return 'valor_atual deve ser um número';
+  if (meta !== undefined && meta !== null && !ehNumeroValido(meta)) return 'meta deve ser um número';
+  if (falta !== undefined && falta !== null && !ehNumeroValido(falta)) return 'falta deve ser um número';
+  return null;
+}
 
 function validarPessoaOuCasa(pessoa_id: unknown, casa_id: unknown): string | null {
   const temPessoa = pessoa_id !== undefined && pessoa_id !== null;
@@ -68,6 +76,9 @@ router.post('/', autenticar, async (req, res, next) => {
     const erroXor = validarPessoaOuCasa(pessoa_id, casa_id);
     if (erroXor) return res.status(400).json({ erro: erroXor });
 
+    const erroValores = validarValoresMeta(valor_atual, meta, falta);
+    if (erroValores) return res.status(400).json({ erro: erroValores });
+
     if (!(await autorizarEscrita(pessoaId, casa_id ?? null, pessoa_id ?? null))) {
       return res.status(403).json({ erro: 'Você não tem permissão para criar meta neste escopo' });
     }
@@ -97,6 +108,9 @@ router.put('/:id', autenticar, async (req, res, next) => {
     const { objetivo, valor_atual, meta, falta } = req.body;
     if (!objetivo) return res.status(400).json({ erro: 'objetivo é obrigatório' });
     // pessoa_id/casa_id não são alteráveis via PUT — escopo fixo desde a criação
+
+    const erroValores = validarValoresMeta(valor_atual, meta, falta);
+    if (erroValores) return res.status(400).json({ erro: erroValores });
 
     const { rows } = await pool.query(
       'UPDATE metas SET objetivo = $1, valor_atual = $2, meta = $3, falta = $4 WHERE id = $5 RETURNING *',
