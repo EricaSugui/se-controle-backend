@@ -1,9 +1,17 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
+import { ehNumeroValido } from '../utils/numero';
 
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
+
+function validarValoresReceita(valor_liquido: unknown, valor_bruto: unknown, descontos: unknown): string | null {
+  if (!ehNumeroValido(valor_liquido)) return 'valor_liquido deve ser um número';
+  if (valor_bruto !== undefined && valor_bruto !== null && !ehNumeroValido(valor_bruto)) return 'valor_bruto deve ser um número';
+  if (descontos !== undefined && descontos !== null && !ehNumeroValido(descontos)) return 'descontos deve ser um número';
+  return null;
+}
 
 const FROM_BASE = `
   FROM receitas r
@@ -69,6 +77,9 @@ router.post('/', autenticar, async (req, res, next) => {
       return res.status(400).json({ erro: 'casa_id e valor_liquido são obrigatórios' });
     }
 
+    const erroValores = validarValoresReceita(valor_liquido, valor_bruto, descontos);
+    if (erroValores) return res.status(400).json({ erro: erroValores });
+
     const { rows: membroRows } = await pool.query(
       'SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2',
       [casa_id, pessoaId]
@@ -120,6 +131,9 @@ router.put('/:id', autenticar, async (req, res, next) => {
     if (!casa_id || valor_liquido === undefined) {
       return res.status(400).json({ erro: 'casa_id e valor_liquido são obrigatórios' });
     }
+
+    const erroValores = validarValoresReceita(valor_liquido, valor_bruto, descontos);
+    if (erroValores) return res.status(400).json({ erro: erroValores });
 
     // lancado_por_id não é alterável — permanece com quem registrou originalmente
     const { rows } = await pool.query(

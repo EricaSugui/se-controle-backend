@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
+import { ehNumeroValido } from '../utils/numero';
 
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
@@ -41,6 +42,9 @@ router.post('/', autenticar, async (req, res, next) => {
 
     if (!nome || !tipo) return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
     if (tipo !== 'credito' && tipo !== 'debito') return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
+    if (limite !== undefined && limite !== null && !ehNumeroValido(limite)) {
+      return res.status(400).json({ erro: 'limite deve ser um número' });
+    }
 
     if (titular_id !== undefined && titular_id !== null && Number(titular_id) !== pessoaId) {
       const { rows: permRows } = await pool.query(
@@ -90,6 +94,9 @@ router.put('/:id', autenticar, async (req, res, next) => {
 
     if (!nome || !tipo) return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
     if (tipo !== 'credito' && tipo !== 'debito') return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
+    if (limite !== undefined && limite !== null && !ehNumeroValido(limite)) {
+      return res.status(400).json({ erro: 'limite deve ser um número' });
+    }
 
     const { rows } = await pool.query(
       `UPDATE cartoes_contas

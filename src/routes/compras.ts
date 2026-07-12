@@ -4,6 +4,7 @@ import pool from '../db';
 import { autenticar } from '../middleware/auth';
 import { adicionarMesesCompetencia, adicionarMesesData } from '../utils/competencia';
 import { calcularDatasFatura, calcularMesReferenciaFatura } from '../utils/fatura';
+import { ehNumeroValido } from '../utils/numero';
 
 const router = Router();
 function orNull<T>(value: T | undefined): T | null {
@@ -205,6 +206,10 @@ router.post('/', autenticar, async (req, res, next) => {
       });
     }
 
+    if (!ehNumeroValido(valor_parcela)) {
+      return res.status(400).json({ erro: 'valor_parcela deve ser um número' });
+    }
+
     const totalParcelas = total_parcelas || 1;
 
     const { rows: membroRows } = await pool.query(
@@ -283,6 +288,10 @@ router.put('/:id', autenticar, async (req, res, next) => {
       return res.status(400).json({
         erro: 'casa_id, pessoa_id, categoria_id, data, competencia e valor_parcela são obrigatórios',
       });
+    }
+
+    if (!ehNumeroValido(valor_parcela)) {
+      return res.status(400).json({ erro: 'valor_parcela deve ser um número' });
     }
 
     const totalParcelas = total_parcelas || 1;
