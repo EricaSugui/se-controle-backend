@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: SeControle - Controle Financeiro Familiar API
   description: API para gerenciar transações, receitas, metas e cadastros de apoio do controle financeiro familiar.
-  version: "3.1.0"
+  version: "3.2.0"
 
 servers:
   - url: http://localhost:3000
@@ -23,6 +23,7 @@ tags:
   - name: Faturas
   - name: Receitas
   - name: Metas
+  - name: Despesas Fixas
   - name: Percentual de Custeio
   - name: Convites
   - name: Dashboard
@@ -115,6 +116,14 @@ paths:
     $ref: './openapi/resources/metas.yml#/paths/metas'
   /metas/{id}:
     $ref: './openapi/resources/metas.yml#/paths/metas-id'
+  /despesas-fixas:
+    $ref: './openapi/resources/despesas-fixas.yml#/paths/despesas-fixas'
+  /despesas-fixas/status:
+    $ref: './openapi/resources/despesas-fixas.yml#/paths/despesas-fixas-status'
+  /despesas-fixas/{id}:
+    $ref: './openapi/resources/despesas-fixas.yml#/paths/despesas-fixas-id'
+  /despesas-fixas/{id}/encerrar:
+    $ref: './openapi/resources/despesas-fixas.yml#/paths/despesas-fixas-id-encerrar'
   /convites:
     $ref: './openapi/resources/convites.yml#/paths/convites'
   /convites/token/{token}:
@@ -228,6 +237,12 @@ components:
       $ref: './openapi/resources/metas.yml#/schemas/MetaInput'
     Meta:
       $ref: './openapi/resources/metas.yml#/schemas/Meta'
+    DespesaFixaInput:
+      $ref: './openapi/resources/despesas-fixas.yml#/schemas/DespesaFixaInput'
+    DespesaFixa:
+      $ref: './openapi/resources/despesas-fixas.yml#/schemas/DespesaFixa'
+    DespesaFixaStatusItem:
+      $ref: './openapi/resources/despesas-fixas.yml#/schemas/DespesaFixaStatusItem'
     ConviteInput:
       $ref: './openapi/resources/convites.yml#/schemas/ConviteInput'
     Convite:

@@ -14,6 +14,12 @@ paths:
         - $ref: "../components/parameters.yml#/parameters/CompetenciaFiltro"
         - $ref: "../components/parameters.yml#/parameters/DataCaixaDe"
         - $ref: "../components/parameters.yml#/parameters/DataCaixaAte"
+        - name: despesa_fixa_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filtra as compras vinculadas a uma despesa fixa (histórico de pagamentos do contrato).
       responses:
         "200":
           description: Lista de compras
@@ -311,6 +317,26 @@ schemas:
         format: float
         description: Valor de cada parcela (todas as parcelas têm o mesmo valor).
         example: 149.40
+      despesa_fixa_id:
+        type: integer
+        nullable: true
+        description: >
+          Vincula esta compra a uma despesa fixa (registro do pagamento de uma
+          competência do contrato). A despesa precisa pertencer ao mesmo
+          escopo da compra: mesma casa (despesa de casa) ou mesma pessoa da
+          compra (despesa pessoal). No PUT, omitir os campos remove o vínculo.
+        example: null
+      competencia_referencia:
+        type: string
+        nullable: true
+        description: >
+          Competência do contrato a que este pagamento se refere (formato
+          MES-AA) — pode diferir de `competencia` se pago atrasado. Exige
+          `despesa_fixa_id`; se omitida com vínculo presente, assume a
+          `competencia` da compra. Precisa estar dentro da vigência da
+          despesa; para despesas anuais, deve usar o mês de início da
+          vigência (mês-âncora).
+        example: null
 
   Compra:
     allOf:

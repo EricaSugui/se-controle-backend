@@ -57,6 +57,38 @@ condicionadas a `private.admin_sistema()`
 | Pessoas | Sem DELETE (só GET, POST e PUT). |
 | Dashboard e fechamento mensal | Somente GET — são visões calculadas, sem escrita. |
 
+### Despesas fixas — vigência, versionamento e vínculo com compras
+
+`despesas_fixas` é o "contrato" recorrente (aluguel, assinatura); as
+ocorrências pagas são compras normais vinculadas a ele.
+
+- **Sem DELETE físico** (nem policy de RLS de DELETE) — o ciclo de vida é
+  encerramento via `PATCH /despesas-fixas/:id/encerrar`, que define
+  `vigente_ate` (default hoje). Encerrada hoje, segue vigente até o fim do
+  dia.
+- **"Ativa" é derivado da vigência**, não armazenado: vigente =
+  `vigente_ate` nulo ou >= hoje (filtro `?vigente=` no GET).
+- **Reajuste = versionamento explícito**: encerrar o registro atual e criar
+  um novo com `despesa_fixa_anterior_id` apontando para ele (a anterior
+  precisa estar encerrada e no mesmo escopo). O PUT não bloqueia editar
+  `valor_referencia` — corrigir um typo não pode exigir versão nova — mas a
+  orientação de produto para contratos de valor `fixo` é versionar.
+- **Escopo (casa/pessoa) imutável após a criação**, como em metas; a
+  autorização segue o mesmo padrão (leitura: membro da casa ou dono;
+  escrita: admin da casa ou dono).
+- **Vínculo em compras**: `competencia_referencia` exige `despesa_fixa_id`
+  (CHECK no banco); omitida, assume a competência da compra; precisa estar
+  na vigência do contrato; despesas anuais só aceitam o mês-âncora (mês de
+  `vigente_desde`), evitando falso-gap.
+- **Gap detection é derivado, não armazenado**: `GET /despesas-fixas/status`
+  calcula as competências esperadas e compara com as compras vinculadas
+  (`pago` / `em_dia` / `vencendo_hoje` / `em_atraso`, com folga configurável
+  após o `dia_esperado`).
+- **Futuro (fora do MVP)**: tabela `despesa_fixa_excecao` para silenciar gap
+  legítimo (carência, isenção pontual) e `POST /:id/reajustar` atômico.
+  Enquanto não existem, o caminho é ajustar a vigência ou conviver com o
+  item em aberto, e versionar em duas chamadas.
+
 ### Por quê
 
 - Catálogos (categorias, formas de pagamento, origens de receita) mudam

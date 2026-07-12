@@ -1,0 +1,372 @@
+paths:
+  despesas-fixas:
+    get:
+      tags: [Despesas Fixas]
+      summary: Lista despesas fixas
+      description: >
+        Retorna despesas fixas pessoais do usuário autenticado (`pessoa_id`) e
+        das casas das quais ele é membro (`casa_id`). "Vigente" é derivado da
+        vigência: `vigente_ate` nulo ou maior/igual a hoje.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: casa_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filtra por casa.
+        - name: pessoa_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filtra por pessoa (escopo pessoal).
+        - name: vigente
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: >
+            true = apenas vigentes (vigente_ate nulo ou >= hoje);
+            false = apenas encerradas (vigente_ate < hoje).
+      responses:
+        "200":
+          description: Lista de despesas fixas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/DespesaFixa"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+    post:
+      tags: [Despesas Fixas]
+      summary: Cria uma despesa fixa
+      description: >
+        Exige exatamente um entre `pessoa_id` e `casa_id`. Despesa fixa pessoal
+        só pode ser criada pelo próprio usuário; despesa de casa exige que o
+        usuário seja admin da casa. Para versionar um contrato (ex.: reajuste
+        de aluguel), encerre o registro atual e crie um novo apontando
+        `despesa_fixa_anterior_id` para ele — a anterior precisa estar
+        encerrada e pertencer ao mesmo escopo. `lancado_por_id` é sempre o
+        usuário autenticado.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/DespesaFixaInput"
+      responses:
+        "201":
+          description: Despesa fixa criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/DespesaFixa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+
+  despesas-fixas-status:
+    get:
+      tags: [Despesas Fixas]
+      summary: Status das competências esperadas (gap detection)
+      description: >
+        Gera as competências esperadas de cada despesa fixa visível — da
+        vigência até hoje; mensal de 1 em 1 mês, anual de 12 em 12 a partir do
+        mês-âncora (mês de `vigente_desde`) — e compara com as compras
+        vinculadas (`despesa_fixa_id` + `competencia_referencia`).
+        Sem `competencia`: retorna apenas itens em aberto (`em_dia` da
+        competência corrente, `vencendo_hoje` e `em_atraso` retroativos).
+        Com `competencia`: retorna a visão de fechamento daquele mês,
+        incluindo itens com status `pago`. Itens ordenados por severidade
+        (em_atraso, vencendo_hoje, em_dia, pago) e data esperada.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: competencia
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Competência no formato MES-AA (ex. JUL-26).
+          example: JUL-26
+        - name: folga_dias
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 3
+          description: >
+            Dias de tolerância após dia_esperado antes de classificar como
+            em_atraso (janela do status vencendo_hoje).
+      responses:
+        "200":
+          description: Itens de status por despesa fixa e competência
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/DespesaFixaStatusItem"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+
+  despesas-fixas-id:
+    get:
+      tags: [Despesas Fixas]
+      summary: Busca uma despesa fixa pelo id
+      description: >
+        Requer que a despesa fixa seja pessoal do usuário autenticado, ou de
+        casa da qual ele é membro.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Despesa fixa encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/DespesaFixa"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+    put:
+      tags: [Despesas Fixas]
+      summary: Atualiza uma despesa fixa
+      description: >
+        Requer que a despesa seja pessoal do usuário autenticado, ou de casa
+        da qual ele é admin. `pessoa_id`/`casa_id` (escopo),
+        `despesa_fixa_anterior_id` e `lancado_por_id` não são alteráveis.
+        Para reajuste de contrato de valor fixo, a orientação é versionar
+        (encerrar + criar nova com `despesa_fixa_anterior_id`) em vez de
+        editar o valor.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/DespesaFixaInput"
+      responses:
+        "200":
+          description: Despesa fixa atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/DespesaFixa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  despesas-fixas-id-encerrar:
+    patch:
+      tags: [Despesas Fixas]
+      summary: Encerra uma despesa fixa
+      description: >
+        Define `vigente_ate` (default hoje, se não informado no corpo). Não há
+        DELETE — o ciclo de vida é encerramento por vigência. Falha se a
+        despesa já estiver encerrada. Uma despesa encerrada hoje continua
+        vigente até o fim do dia.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vigente_ate:
+                  type: string
+                  format: date
+                  nullable: true
+                  description: "Data de fim da vigência. Default: hoje."
+                  example: "2026-12-31"
+      responses:
+        "200":
+          description: Despesa fixa encerrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/DespesaFixa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+schemas:
+  DespesaFixaInput:
+    type: object
+    required: [categoria_id, descricao, tipo_valor, valor_referencia, periodicidade, dia_esperado, vigente_desde]
+    description: >
+      pessoa_id e casa_id são mutuamente exclusivos — informe exatamente um
+      dos dois na criação (não são alteráveis depois). Despesa pessoal
+      (pessoa_id) só pode ser criada para o próprio usuário autenticado;
+      despesa de casa (casa_id) exige que o usuário seja admin daquela casa.
+    properties:
+      casa_id:
+        type: integer
+        nullable: true
+        description: Preencher para despesa da casa. Mutuamente exclusivo com pessoa_id.
+        example: 1
+      pessoa_id:
+        type: integer
+        nullable: true
+        description: Preencher para despesa pessoal. Mutuamente exclusivo com casa_id.
+        example: null
+      categoria_id:
+        type: integer
+        example: 3
+      descricao:
+        type: string
+        description: Nome específico da instância do contrato.
+        example: Aluguel - apto Campinas
+      tipo_valor:
+        type: string
+        enum: [fixo, variavel_estimado]
+        description: fixo = valor contratual; variavel_estimado = estimativa corrente (ex. conta de luz).
+        example: fixo
+      valor_referencia:
+        type: number
+        format: float
+        description: Valor fixo real ou estimativa corrente, conforme tipo_valor.
+        example: 1500
+      periodicidade:
+        type: string
+        enum: [mensal, anual]
+        example: mensal
+      dia_esperado:
+        type: integer
+        minimum: 1
+        maximum: 31
+        description: >
+          Dia do mês esperado para o vencimento/lançamento. Em meses mais
+          curtos, é clampado ao último dia (31 vira 28/29 em fevereiro).
+        example: 5
+      vigente_desde:
+        type: string
+        format: date
+        example: "2026-01-01"
+      vigente_ate:
+        type: string
+        format: date
+        nullable: true
+        description: >
+          Nulo = ainda vigente. "Ativa" é derivado da vigência, não
+          armazenado.
+        example: null
+      despesa_fixa_anterior_id:
+        type: integer
+        nullable: true
+        description: >
+          Versão anterior deste contrato (versionamento por sucessão). A
+          anterior precisa estar encerrada e pertencer ao mesmo escopo. Não é
+          alterável após a criação.
+        example: null
+
+  DespesaFixa:
+    allOf:
+      - $ref: "#/schemas/DespesaFixaInput"
+      - type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          lancado_por_id:
+            type: integer
+            nullable: true
+            readOnly: true
+            description: Definido automaticamente pelo servidor a partir do usuário autenticado na criação; não é alterável.
+            example: 7
+          categoria_nome:
+            type: string
+            readOnly: true
+            description: Presente nas respostas de listagem e busca (GET).
+            example: Moradia
+          created_at:
+            type: string
+            format: date-time
+
+  DespesaFixaStatusItem:
+    type: object
+    description: >
+      Uma competência esperada de uma despesa fixa, com sua situação frente
+      às compras vinculadas.
+    properties:
+      despesa_fixa_id:
+        type: integer
+        example: 1
+      descricao:
+        type: string
+        example: Aluguel - apto Campinas
+      casa_id:
+        type: integer
+        nullable: true
+        example: 1
+      pessoa_id:
+        type: integer
+        nullable: true
+        example: null
+      categoria_id:
+        type: integer
+        example: 3
+      categoria_nome:
+        type: string
+        example: Moradia
+      tipo_valor:
+        type: string
+        enum: [fixo, variavel_estimado]
+        example: fixo
+      valor_referencia:
+        type: number
+        format: float
+        example: 1500
+      periodicidade:
+        type: string
+        enum: [mensal, anual]
+        example: mensal
+      competencia:
+        type: string
+        description: Competência esperada, formato MES-AA.
+        example: JUL-26
+      data_esperada:
+        type: string
+        format: date
+        description: dia_esperado aplicado à competência (clampado ao último dia do mês).
+        example: "2026-07-05"
+      status:
+        type: string
+        enum: [pago, em_dia, vencendo_hoje, em_atraso]
+        description: >
+          pago = existe compra vinculada à competência; em_dia = ainda antes
+          da data esperada; vencendo_hoje = entre a data esperada e a folga;
+          em_atraso = passou da folga sem pagamento.
+        example: em_atraso
