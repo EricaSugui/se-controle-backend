@@ -1,0 +1,173 @@
+paths:
+  metas:
+    get:
+      tags: [Metas]
+      summary: Lista metas
+      description: >
+        Retorna metas pessoais do usuário autenticado (`pessoa_id`) e metas
+        das casas das quais ele é membro (`casa_id`).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Lista de metas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/Meta"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+    post:
+      tags: [Metas]
+      summary: Cria uma meta
+      description: >
+        Exige exatamente um entre `pessoa_id` e `casa_id`. Meta pessoal só
+        pode ser criada pelo próprio usuário (`pessoa_id` = usuário
+        autenticado); meta de casa exige que o usuário seja admin da casa.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/MetaInput"
+      responses:
+        "201":
+          description: Meta criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Meta"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+
+  metas-id:
+    get:
+      tags: [Metas]
+      summary: Busca uma meta pelo id
+      description: >
+        Requer que a meta seja pessoal do usuário autenticado, ou de casa da
+        qual ele é membro.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Meta encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Meta"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+    put:
+      tags: [Metas]
+      summary: Atualiza uma meta
+      description: >
+        Requer que a meta seja pessoal do usuário autenticado, ou de casa da
+        qual ele é admin. `pessoa_id`/`casa_id` não são alteráveis (escopo
+        fixo desde a criação).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/MetaInput"
+      responses:
+        "200":
+          description: Meta atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Meta"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+    delete:
+      tags: [Metas]
+      summary: Remove uma meta
+      description: >
+        Requer que a meta seja pessoal do usuário autenticado, ou de casa da
+        qual ele é admin.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "204":
+          description: Meta removida
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+schemas:
+  MetaInput:
+    type: object
+    required: [objetivo]
+    description: >
+      pessoa_id e casa_id são mutuamente exclusivos — informe exatamente um
+      dos dois na criação (não são alteráveis depois). Meta pessoal
+      (pessoa_id) só pode ser criada para o próprio usuário autenticado;
+      meta de casa (casa_id) exige que o usuário seja admin daquela casa.
+    properties:
+      objetivo:
+        type: string
+        example: Entrada Apartamento
+      valor_atual:
+        type: number
+        format: float
+        example: 0
+      meta:
+        type: number
+        format: float
+        nullable: true
+        example: 50000
+      falta:
+        type: number
+        format: float
+        nullable: true
+        example: 50000
+      pessoa_id:
+        type: integer
+        nullable: true
+        description: Preencher para meta pessoal. Mutuamente exclusivo com casa_id.
+        example: 7
+      casa_id:
+        type: integer
+        nullable: true
+        description: Preencher para meta de casa. Mutuamente exclusivo com pessoa_id.
+        example: null
+
+  Meta:
+    allOf:
+      - $ref: "#/schemas/MetaInput"
+      - type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          created_at:
+            type: string
+            format: date-time

@@ -1,0 +1,15 @@
+schemas:
+  Erro:
+    type: object
+    properties:
+      erro:
+        type: string
+        example: Registro não encontrado
+
+  NomeInput:
+    type: object
+    required: [nome]
+    properties:
+      nome:
+        type: string
+        example: Energia

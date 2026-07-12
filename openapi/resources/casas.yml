@@ -1,0 +1,399 @@
+paths:
+  casas:
+    get:
+      tags: [Casas]
+      summary: Lista casas
+      description: Todas as casas do sistema são visíveis a qualquer usuário autenticado.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de casas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/Casa"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+    post:
+      tags: [Casas]
+      summary: Cria uma casa
+      description: >
+        Qualquer usuário autenticado pode criar uma casa. O criador é
+        automaticamente adicionado como admin da casa criada.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../components/common-schemas.yml#/schemas/NomeInput"
+      responses:
+        "201":
+          description: Casa criada (o usuário autenticado já é admin dela)
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Casa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "409":
+          description: Já existe uma casa com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  casas-id:
+    put:
+      tags: [Casas]
+      summary: Atualiza uma casa
+      description: Requer que o usuário autenticado seja admin da casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../components/common-schemas.yml#/schemas/NomeInput"
+      responses:
+        "200":
+          description: Casa atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Casa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  casas-id-ativar:
+    patch:
+      tags: [Casas]
+      summary: Ativa uma casa
+      description: Requer que o usuário autenticado seja admin da casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Casa ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Casa"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  casas-id-desativar:
+    patch:
+      tags: [Casas]
+      summary: Desativa uma casa
+      description: Requer que o usuário autenticado seja admin da casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Casa desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Casa"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  casas-casaId-pessoas:
+    get:
+      tags: [Casa Pessoas]
+      summary: Lista membros de uma casa
+      description: Requer que o usuário autenticado participe desta casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+      responses:
+        "200":
+          description: Lista de membros com dados da pessoa
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/CasaPessoa"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+    post:
+      tags: [Casa Pessoas]
+      summary: Associa uma pessoa a uma casa
+      description: Requer que o usuário autenticado seja admin desta casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/CasaPessoaInput"
+      responses:
+        "201":
+          description: Pessoa associada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/CasaPessoa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "409":
+          description: Pessoa já associada a esta casa
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  casas-casaId-pessoas-pessoaId-papel:
+    patch:
+      tags: [Casa Pessoas]
+      summary: Atualiza o papel de uma pessoa na casa
+      description: Requer que o usuário autenticado seja admin desta casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+        - $ref: "../components/parameters.yml#/parameters/PessoaId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [papel]
+              properties:
+                papel:
+                  type: string
+                  enum: [admin, membro]
+                  example: admin
+      responses:
+        "200":
+          description: Papel atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/CasaPessoa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  casas-casaId-pessoas-pessoaId:
+    delete:
+      tags: [Casa Pessoas]
+      summary: Remove a associação de uma pessoa a uma casa
+      description: Requer que o usuário autenticado seja admin desta casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+        - $ref: "../components/parameters.yml#/parameters/PessoaId"
+      responses:
+        "204":
+          description: Associação removida
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  casas-casaId-percentual-custeio:
+    get:
+      tags: [Percentual de Custeio]
+      summary: Consulta percentuais de custeio de uma casa
+      description: >
+        Retorna os registros de percentual de custeio da casa.
+        Filtrável por competencia e/ou pessoa_id.
+        Quando ambos são informados, retorna o registro exato daquela combinação (ou array vazio).
+        Requer que o usuário autenticado participe desta casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+        - $ref: "../components/parameters.yml#/parameters/CompetenciaFiltro"
+        - name: pessoa_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Lista de percentuais de custeio
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/PercentualCusteio"
+    post:
+      tags: [Percentual de Custeio]
+      summary: Define o percentual de custeio de uma pessoa em uma casa para uma competência
+      description: >
+        Faz upsert: se já existe um registro para a combinação (casa, pessoa, competência),
+        atualiza o percentual. Caso contrário, cria um novo. Requer que o usuário
+        autenticado seja admin desta casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/PercentualCusteioInput"
+      responses:
+        "201":
+          description: Percentual registrado ou atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/PercentualCusteio"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+
+schemas:
+  Casa:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      nome:
+        type: string
+        example: Minha Casa
+      ativo:
+        type: boolean
+        example: true
+      created_at:
+        type: string
+        format: date-time
+
+  CasaPessoaInput:
+    type: object
+    required: [pessoa_id]
+    properties:
+      pessoa_id:
+        type: integer
+        example: 7
+      papel:
+        type: string
+        enum: [admin, membro]
+        default: membro
+        example: admin
+
+  CasaPessoa:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      pessoa_id:
+        type: integer
+        example: 7
+      papel:
+        type: string
+        enum: [admin, membro]
+        example: admin
+      created_at:
+        type: string
+        format: date-time
+      nome:
+        type: string
+        example: Erica
+      email:
+        type: string
+        format: email
+        nullable: true
+        example: erica@email.com
+      ativo:
+        type: boolean
+        example: true
+
+  PercentualCusteioInput:
+    type: object
+    required: [pessoa_id, competencia, percentual]
+    properties:
+      pessoa_id:
+        type: integer
+        example: 7
+      competencia:
+        type: string
+        example: JUN-26
+      percentual:
+        type: number
+        format: float
+        example: 30
+
+  PercentualCusteio:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      casa_id:
+        type: integer
+        example: 2
+      pessoa_id:
+        type: integer
+        example: 7
+      competencia:
+        type: string
+        example: JUN-26
+      percentual:
+        type: number
+        format: float
+        example: 30
+      created_at:
+        type: string
+        format: date-time

@@ -1,0 +1,154 @@
+paths:
+  origens-receita:
+    get:
+      tags: [Origens de Receita]
+      summary: Lista origens de receita
+      description: >
+        Leitura aberta a qualquer usuário autenticado. Escrita restrita a
+        admins do sistema (pessoas com admin_sistema = true).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de origens de receita
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/OrigemReceita"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+    post:
+      tags: [Origens de Receita]
+      summary: Cria uma origem de receita
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../components/common-schemas.yml#/schemas/NomeInput"
+      responses:
+        "201":
+          description: Origem de receita criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/OrigemReceita"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  origens-receita-id:
+    put:
+      tags: [Origens de Receita]
+      summary: Atualiza o nome de uma origem de receita
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../components/common-schemas.yml#/schemas/NomeInput"
+      responses:
+        "200":
+          description: Origem de receita atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/OrigemReceita"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  origens-receita-id-ativar:
+    patch:
+      tags: [Origens de Receita]
+      summary: Ativa uma origem de receita
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Origem de receita ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/OrigemReceita"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  origens-receita-id-desativar:
+    patch:
+      tags: [Origens de Receita]
+      summary: Desativa uma origem de receita
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Origem de receita desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/OrigemReceita"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+schemas:
+  OrigemReceita:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      nome:
+        type: string
+        example: Salário
+      ativo:
+        type: boolean
+        example: true
+      created_at:
+        type: string
+        format: date-time

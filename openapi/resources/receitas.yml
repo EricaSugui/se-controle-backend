@@ -1,0 +1,204 @@
+paths:
+  receitas:
+    get:
+      tags: [Receitas]
+      summary: Lista receitas
+      description: >
+        Retorna apenas receitas de casas das quais o usuário autenticado é
+        membro. Cada item inclui `pode_editar`, verdadeiro se o usuário
+        autenticado registrou a receita (`lancado_por_id`) ou é admin na casa
+        dela.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CompetenciaFiltro"
+      responses:
+        "200":
+          description: Lista de receitas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/Receita"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/NaoVinculado"
+    post:
+      tags: [Receitas]
+      summary: Cria uma receita
+      description: >
+        `lancado_por_id` é sempre definido como o usuário autenticado,
+        ignorando qualquer valor enviado no corpo. Requer que o usuário seja
+        membro da casa informada em `casa_id`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/ReceitaInput"
+      responses:
+        "201":
+          description: Receita criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Receita"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+
+  receitas-id:
+    get:
+      tags: [Receitas]
+      summary: Busca uma receita pelo id
+      description: Requer que o usuário autenticado seja membro da casa da receita.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Receita encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Receita"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+    put:
+      tags: [Receitas]
+      summary: Atualiza uma receita
+      description: >
+        Requer que o usuário autenticado tenha registrado a receita
+        (`lancado_por_id`) ou seja admin na casa dela. `lancado_por_id` não é
+        alterável.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/ReceitaInput"
+      responses:
+        "200":
+          description: Receita atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Receita"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+    delete:
+      tags: [Receitas]
+      summary: Remove uma receita
+      description: >
+        Requer que o usuário autenticado tenha registrado a receita
+        (`lancado_por_id`) ou seja admin na casa dela.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "204":
+          description: Receita removida
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+schemas:
+  ReceitaInput:
+    type: object
+    required: [casa_id, valor_liquido]
+    properties:
+      casa_id:
+        type: integer
+        example: 1
+      pessoa_id:
+        type: integer
+        nullable: true
+        example: 7
+      origem_id:
+        type: integer
+        nullable: true
+        example: 1
+      observacao:
+        type: string
+        nullable: true
+        example: Salário referente a maio
+      valor_bruto:
+        type: number
+        format: float
+        nullable: true
+        example: 5500
+      descontos:
+        type: number
+        format: float
+        nullable: true
+        example: 500
+      valor_liquido:
+        type: number
+        format: float
+        example: 5000
+      data:
+        type: string
+        format: date
+        nullable: true
+        example: "2026-06-05"
+      competencia:
+        type: string
+        nullable: true
+        example: JUN-26
+
+  Receita:
+    allOf:
+      - $ref: "#/schemas/ReceitaInput"
+      - type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          lancado_por_id:
+            type: integer
+            nullable: true
+            readOnly: true
+            description: Definido automaticamente pelo servidor a partir do usuário autenticado na criação; não é alterável.
+            example: 7
+          pessoa_nome:
+            type: string
+            nullable: true
+            readOnly: true
+            example: Erica
+          origem_nome:
+            type: string
+            nullable: true
+            readOnly: true
+            example: Salário
+          pode_editar:
+            type: boolean
+            readOnly: true
+            description: Se o usuário autenticado registrou a receita ou é admin na casa dela.
+            example: true
+          created_at:
+            type: string
+            format: date-time

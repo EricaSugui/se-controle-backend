@@ -1,0 +1,92 @@
+parameters:
+  Id:
+    name: id
+    in: path
+    required: true
+    schema:
+      type: integer
+    example: 1
+
+  CasaId:
+    name: casaId
+    in: path
+    required: true
+    schema:
+      type: integer
+    example: 1
+
+  PessoaId:
+    name: pessoaId
+    in: path
+    required: true
+    schema:
+      type: integer
+    example: 7
+
+  CompraId:
+    name: compraId
+    in: path
+    required: true
+    schema:
+      type: integer
+    example: 5
+
+  CartaoId:
+    name: cartaoId
+    in: path
+    required: true
+    schema:
+      type: integer
+    example: 2
+
+  DataCaixaDe:
+    name: de
+    in: query
+    required: false
+    description: Filtra compras com pelo menos uma parcela cuja data_caixa seja >= este valor (formato ISO, ex. 2026-06-01)
+    schema:
+      type: string
+      format: date
+
+  DataCaixaAte:
+    name: ate
+    in: query
+    required: false
+    description: Filtra compras com pelo menos uma parcela cuja data_caixa seja <= este valor (formato ISO, ex. 2026-06-30)
+    schema:
+      type: string
+      format: date
+
+  CartaoContaIdFiltro:
+    name: cartao_conta_id
+    in: query
+    required: false
+    description: Filtra faturas de um cartão específico
+    schema:
+      type: integer
+      example: 2
+
+  ConviteToken:
+    name: token
+    in: path
+    required: true
+    schema:
+      type: string
+    example: a3f8c2d1e4b7...
+
+  AtivoFiltro:
+    name: ativo
+    in: query
+    required: false
+    description: Filtra pelo status ativo/inativo
+    schema:
+      type: boolean
+
+  CompetenciaFiltro:
+    name: competencia
+    in: query
+    required: false
+    description: "Filtra pela competência no formato MES-AA (ex.: JUN-26)"
+    schema:
+      type: string
+      example: JUN-26

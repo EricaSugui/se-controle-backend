@@ -1,0 +1,154 @@
+paths:
+  categorias:
+    get:
+      tags: [Categorias]
+      summary: Lista categorias
+      description: >
+        Leitura aberta a qualquer usuário autenticado. Escrita restrita a
+        admins do sistema (pessoas com admin_sistema = true).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de categorias
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/Categoria"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+    post:
+      tags: [Categorias]
+      summary: Cria uma categoria
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../components/common-schemas.yml#/schemas/NomeInput"
+      responses:
+        "201":
+          description: Categoria criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Categoria"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  categorias-id:
+    put:
+      tags: [Categorias]
+      summary: Atualiza o nome de uma categoria
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../components/common-schemas.yml#/schemas/NomeInput"
+      responses:
+        "200":
+          description: Categoria atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Categoria"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  categorias-id-ativar:
+    patch:
+      tags: [Categorias]
+      summary: Ativa uma categoria
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Categoria ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Categoria"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  categorias-id-desativar:
+    patch:
+      tags: [Categorias]
+      summary: Desativa uma categoria
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Categoria desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Categoria"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+schemas:
+  Categoria:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      nome:
+        type: string
+        example: Energia
+      ativo:
+        type: boolean
+        example: true
+      created_at:
+        type: string
+        format: date-time

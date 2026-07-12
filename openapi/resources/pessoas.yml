@@ -1,0 +1,167 @@
+paths:
+  pessoas:
+    get:
+      tags: [Pessoas]
+      summary: Lista pessoas que compartilham alguma casa com o usuário autenticado
+      description: Idêntico a /pessoas/relacionadas — mantido por retrocompatibilidade.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de pessoas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/Pessoa"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+    post:
+      tags: [Pessoas]
+      summary: Cria uma pessoa
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/PessoaInput"
+      responses:
+        "201":
+          description: Pessoa criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Pessoa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+
+  pessoas-relacionadas:
+    get:
+      tags: [Pessoas]
+      summary: Lista pessoas que compartilham alguma casa com o usuário autenticado
+      description: >
+        Retorna as pessoas que são membros de pelo menos uma casa da qual o
+        usuário autenticado também é membro (sem duplicatas). Usado, por
+        exemplo, para escolher o titular de um cartão/conta sem expor pessoas
+        de casas às quais o usuário não pertence.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de pessoas relacionadas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/Pessoa"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/NaoVinculado"
+
+  pessoas-id:
+    get:
+      tags: [Pessoas]
+      summary: Busca uma pessoa pelo id
+      description: Retorna a pessoa se for a própria pessoa autenticada ou compartilhar alguma casa com ela.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Pessoa encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Pessoa"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+    put:
+      tags: [Pessoas]
+      summary: Atualiza uma pessoa
+      description: Requer que o usuário autenticado esteja editando os próprios dados.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/PessoaInput"
+      responses:
+        "200":
+          description: Pessoa atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Pessoa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+schemas:
+  PessoaInput:
+    type: object
+    required: [nome]
+    properties:
+      nome:
+        type: string
+        example: Erica
+      email:
+        type: string
+        format: email
+        nullable: true
+        example: erica@email.com
+
+  Pessoa:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      nome:
+        type: string
+        example: Erica
+      email:
+        type: string
+        format: email
+        nullable: true
+        example: erica@email.com
+      supabase_user_id:
+        type: string
+        format: uuid
+        nullable: true
+        example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+      ativo:
+        type: boolean
+        example: true
+      admin_sistema:
+        type: boolean
+        description: >
+          Papel global de admin do sistema — permite gerenciar as tabelas de
+          referência (categorias, formas de pagamento, origens de receita).
+          Diferente de admin de casa (casa_pessoas.papel).
+        example: false
+      created_at:
+        type: string
+        format: date-time

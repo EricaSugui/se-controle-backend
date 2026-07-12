@@ -1,0 +1,316 @@
+paths:
+  convites:
+    get:
+      tags: [Convites]
+      summary: Lista convites
+      description: >
+        Retorna convites de casas das quais o usuário autenticado é admin, e
+        convites sem casa (auto-cadastro) criados pelo próprio usuário. A
+        resposta nunca inclui o campo `token`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pendente, aceito, expirado]
+          example: pendente
+        - name: email
+          in: query
+          required: false
+          schema:
+            type: string
+            format: email
+          example: convidado@email.com
+      responses:
+        "200":
+          description: Lista de convites (sem o campo token)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/ConviteSemToken"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+    post:
+      tags: [Convites]
+      summary: Cria um convite e envia email pelo Supabase
+      description: >
+        Salva o convite no banco e aciona o Supabase para enviar um email de convite
+        ao endereço informado. O link no email redireciona ao frontend com o token
+        do convite na query string e o access_token do Supabase no fragmento (#).
+        `convidado_por_id` é sempre o usuário autenticado, ignorando qualquer
+        valor enviado no corpo. Se `casa_id` for informado, exige que o usuário
+        seja admin daquela casa; convites sem `casa_id` (auto-cadastro) podem
+        ser criados por qualquer autenticado.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/ConviteInput"
+      responses:
+        "201":
+          description: Convite criado e email enviado (sem o campo token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ConviteSemToken"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+
+  convites-token-token:
+    get:
+      tags: [Convites]
+      summary: Busca um convite pelo token
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/ConviteToken"
+      responses:
+        "200":
+          description: Convite encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Convite"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  convites-token-token-aceitar:
+    patch:
+      tags: [Convites]
+      summary: Aceita um convite — fluxo completo de cadastro
+      description: >
+        Valida o Bearer token do Supabase, confere se o email bate com o do convite,
+        cria a pessoa no banco, vincula o supabase_user_id, adiciona à casa_pessoas
+        (se o convite tiver casa_id) e marca o convite como aceito. Tudo em uma
+        transação atômica.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/ConviteToken"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome:
+                  type: string
+                  description: Nome da pessoa. Se omitido, usa o prefixo do email.
+                  example: Marcela
+      responses:
+        "200":
+          description: Convite aceito — retorna a pessoa criada
+          content:
+            application/json:
+              schema:
+                $ref: "./pessoas.yml#/schemas/Pessoa"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          description: Email do usuário não corresponde ao convite
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: Convite já utilizado, expirado ou usuário já vinculado
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  convites-id:
+    get:
+      tags: [Convites]
+      summary: Busca um convite pelo id
+      description: >
+        Requer que o usuário autenticado seja admin da casa do convite, ou
+        (se o convite não tiver casa) que tenha sido quem o criou.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Convite encontrado (sem o campo token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ConviteSemToken"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  convites-id-aceitar:
+    patch:
+      tags: [Convites]
+      summary: Marca um convite como aceito (uso administrativo)
+      description: >
+        Altera apenas o status do convite para "aceito", sem criar pessoa nem
+        acionar Supabase. Use para correções manuais. Requer que o usuário
+        autenticado seja admin da casa do convite, ou (se o convite não tiver
+        casa) que tenha sido quem o criou.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Convite marcado como aceito (sem o campo token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ConviteSemToken"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  convites-id-expirar:
+    patch:
+      tags: [Convites]
+      summary: Expira um convite pendente
+      description: >
+        Requer que o usuário autenticado seja admin da casa do convite, ou
+        (se o convite não tiver casa) que tenha sido quem o criou.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Convite expirado (sem o campo token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ConviteSemToken"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+schemas:
+  ConviteInput:
+    type: object
+    required: [email]
+    properties:
+      email:
+        type: string
+        format: email
+        example: convidado@email.com
+      casa_id:
+        type: integer
+        nullable: true
+        description: >
+          Se informado, o usuário autenticado precisa ser admin desta casa.
+          Se omitido, o convite é de auto-cadastro (sem casa).
+        example: 1
+      papel:
+        type: string
+        enum: [admin, membro]
+        nullable: true
+        example: membro
+      expires_at:
+        type: string
+        format: date-time
+        nullable: true
+        example: "2026-07-25T23:59:59Z"
+
+  Convite:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      email:
+        type: string
+        format: email
+        example: convidado@email.com
+      convidado_por_id:
+        type: integer
+        readOnly: true
+        description: Definido automaticamente pelo servidor a partir do usuário autenticado na criação.
+        example: 7
+      casa_id:
+        type: integer
+        nullable: true
+        example: 1
+      papel:
+        type: string
+        enum: [admin, membro]
+        nullable: true
+        example: membro
+      token:
+        type: string
+        example: a3f8c2d1e4b7...
+      status:
+        type: string
+        enum: [pendente, aceito, expirado]
+        example: pendente
+      expires_at:
+        type: string
+        format: date-time
+        nullable: true
+        example: "2026-07-25T23:59:59Z"
+      created_at:
+        type: string
+        format: date-time
+
+  ConviteSemToken:
+    type: object
+    description: >
+      Mesma forma de Convite, mas sem o campo token — usado em todas as
+      respostas autenticadas (GET /convites, GET /convites/{id}, POST
+      /convites, aceitar/expirar por id). O token só é exposto via
+      GET /convites/token/{token}, que já exige conhecê-lo de antemão.
+    properties:
+      id:
+        type: integer
+        example: 1
+      email:
+        type: string
+        format: email
+        example: convidado@email.com
+      convidado_por_id:
+        type: integer
+        readOnly: true
+        example: 7
+      casa_id:
+        type: integer
+        nullable: true
+        example: 1
+      papel:
+        type: string
+        enum: [admin, membro]
+        nullable: true
+        example: membro
+      status:
+        type: string
+        enum: [pendente, aceito, expirado]
+        example: pendente
+      expires_at:
+        type: string
+        format: date-time
+        nullable: true
+        example: "2026-07-25T23:59:59Z"
+      created_at:
+        type: string
+        format: date-time

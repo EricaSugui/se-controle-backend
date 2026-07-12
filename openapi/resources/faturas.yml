@@ -1,0 +1,130 @@
+paths:
+  faturas:
+    get:
+      tags: [Faturas]
+      summary: Lista faturas
+      description: >
+        Retorna apenas faturas de cartões dos quais o usuário autenticado é o
+        titular — não há visibilidade compartilhada por casa, mesmo que o
+        cartão esteja compartilhado.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CartaoContaIdFiltro"
+      responses:
+        "200":
+          description: Lista de faturas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/Fatura"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+
+  faturas-id:
+    get:
+      tags: [Faturas]
+      summary: Busca uma fatura pelo id, com suas parcelas
+      description: Requer que o usuário autenticado seja o titular do cartão da fatura.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Fatura encontrada, com as parcelas embutidas
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Fatura"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+    put:
+      tags: [Faturas]
+      summary: Ajusta as datas de uma fatura
+      description: >
+        Requer que o usuário autenticado seja o titular do cartão da fatura.
+        Não existe criação manual de fatura — ela nasce automaticamente quando
+        a primeira compra do ciclo é lançada. Use este endpoint para corrigir
+        `data_fechamento`/`data_vencimento` quando a realidade diverge da
+        regra (ex.: fechamento caiu em fim de semana e deslizou).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/FaturaInput"
+      responses:
+        "200":
+          description: Fatura atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Fatura"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+schemas:
+  FaturaInput:
+    type: object
+    required: [data_fechamento, data_vencimento]
+    properties:
+      data_abertura:
+        type: string
+        format: date
+        nullable: true
+        example: "2026-06-20"
+      data_fechamento:
+        type: string
+        format: date
+        example: "2026-07-19"
+      data_vencimento:
+        type: string
+        format: date
+        example: "2026-07-25"
+
+  Fatura:
+    allOf:
+      - $ref: "#/schemas/FaturaInput"
+      - type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          cartao_conta_id:
+            type: integer
+            readOnly: true
+            example: 2
+          mes_referencia:
+            type: string
+            readOnly: true
+            description: >
+              Mês de vencimento da fatura (formato MES-AA). Definido
+              automaticamente na criação lazy (junto com a primeira compra
+              do ciclo), não é alterável.
+            example: JUL-26
+          parcelas:
+            type: array
+            readOnly: true
+            description: Presente apenas na resposta de GET /faturas/{id}.
+            items:
+              $ref: "./compras.yml#/schemas/Parcela"
+          created_at:
+            type: string
+            format: date-time
