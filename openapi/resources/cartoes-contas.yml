@@ -1,0 +1,330 @@
+paths:
+  cartoes-contas:
+    get:
+      tags: [Cartões e Contas]
+      summary: Lista cartões e contas
+      description: >
+        Retorna os cartões/contas do próprio usuário autenticado (titular),
+        mais os de outras pessoas que tenham sido explicitamente
+        compartilhados (`compartilhado = true` em
+        /cartoes-contas/{cartaoId}/visibilidade) com alguma casa da qual o
+        usuário participa. Privado por padrão — compartilhar uma casa com o
+        titular não é suficiente por si só. Cada item inclui `pode_editar`,
+        verdadeiro somente quando o usuário autenticado é o titular.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de cartões e contas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/CartaoConta"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/NaoVinculado"
+    post:
+      tags: [Cartões e Contas]
+      summary: Cria um cartão ou conta
+      description: >
+        `titular_id`, se informado e diferente do próprio usuário autenticado,
+        exige que o usuário seja admin em alguma casa compartilhada com a
+        pessoa indicada.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/CartaoContaInput"
+      responses:
+        "201":
+          description: Cartão/conta criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/CartaoConta"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+
+  cartoes-contas-id:
+    put:
+      tags: [Cartões e Contas]
+      summary: Atualiza um cartão ou conta
+      description: Requer que o usuário autenticado seja o titular do registro.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/CartaoContaInput"
+      responses:
+        "200":
+          description: Cartão/conta atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/CartaoConta"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  cartoes-contas-id-ativar:
+    patch:
+      tags: [Cartões e Contas]
+      summary: Ativa um cartão ou conta
+      description: Requer que o usuário autenticado seja o titular do registro.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Cartão/conta ativado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/CartaoConta"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  cartoes-contas-id-desativar:
+    patch:
+      tags: [Cartões e Contas]
+      summary: Desativa um cartão ou conta
+      description: Requer que o usuário autenticado seja o titular do registro.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Cartão/conta desativado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/CartaoConta"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  cartoes-contas-cartaoId-visibilidade:
+    get:
+      tags: [Cartões e Contas]
+      summary: Lista o compartilhamento de um cartão/conta com casas
+      description: >
+        O titular vê todas as entradas de visibilidade do cartão. Um membro de
+        casa que não é o titular só vê a entrada referente à própria casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CartaoId"
+      responses:
+        "200":
+          description: Lista de entradas de visibilidade
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/CartaoCasaVisibilidade"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+    post:
+      tags: [Cartões e Contas]
+      summary: Define o compartilhamento de um cartão/conta com uma casa
+      description: Requer que o usuário autenticado seja o titular do cartão.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CartaoId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/CartaoCasaVisibilidadeInput"
+      responses:
+        "201":
+          description: Entrada de visibilidade criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/CartaoCasaVisibilidade"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: Já existe uma entrada de visibilidade para esta casa
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  cartoes-contas-cartaoId-visibilidade-casaId:
+    patch:
+      tags: [Cartões e Contas]
+      summary: Alterna o compartilhamento de um cartão/conta com uma casa
+      description: Requer que o usuário autenticado seja o titular do cartão.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CartaoId"
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [compartilhado]
+              properties:
+                compartilhado:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Entrada de visibilidade atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/CartaoCasaVisibilidade"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+    delete:
+      tags: [Cartões e Contas]
+      summary: Remove o compartilhamento de um cartão/conta com uma casa
+      description: >
+        Requer que o usuário autenticado seja o titular do cartão. Remover a
+        entrada volta o cartão ao padrão privado para aquela casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CartaoId"
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+      responses:
+        "204":
+          description: Entrada de visibilidade removida
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+schemas:
+  CartaoContaInput:
+    type: object
+    required: [nome, tipo]
+    properties:
+      nome:
+        type: string
+        example: Nubank
+      tipo:
+        type: string
+        enum: [credito, debito]
+        example: credito
+      titular_id:
+        type: integer
+        nullable: true
+        example: 1
+      limite:
+        type: number
+        format: float
+        nullable: true
+        example: 12000
+      dia_fechamento:
+        type: integer
+        nullable: true
+        example: 19
+      dia_vencimento:
+        type: integer
+        nullable: true
+        example: 25
+
+  CartaoConta:
+    allOf:
+      - $ref: "#/schemas/CartaoContaInput"
+      - type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          ativo:
+            type: boolean
+            example: true
+          created_at:
+            type: string
+            format: date-time
+          pode_editar:
+            type: boolean
+            readOnly: true
+            description: Se o usuário autenticado é o titular deste registro. Presente apenas na listagem.
+            example: true
+
+  CartaoCasaVisibilidadeInput:
+    type: object
+    required: [casa_id]
+    properties:
+      casa_id:
+        type: integer
+        example: 1
+      compartilhado:
+        type: boolean
+        default: false
+        example: true
+
+  CartaoCasaVisibilidade:
+    allOf:
+      - $ref: "#/schemas/CartaoCasaVisibilidadeInput"
+      - type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          cartao_id:
+            type: integer
+            readOnly: true
+            example: 2
+          created_at:
+            type: string
+            format: date-time

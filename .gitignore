@@ -1,5 +1,6 @@
 node_modules/
 dist/
+openapi.bundled.yml
 .env
 .env.local
 package-lock.json

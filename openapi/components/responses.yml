@@ -1,0 +1,35 @@
+responses:
+  ErroValidacao:
+    description: Dados inválidos
+    content:
+      application/json:
+        schema:
+          $ref: "./common-schemas.yml#/schemas/Erro"
+
+  NaoEncontrado:
+    description: Registro não encontrado
+    content:
+      application/json:
+        schema:
+          $ref: "./common-schemas.yml#/schemas/Erro"
+
+  NaoAutenticado:
+    description: Token não fornecido ou inválido
+    content:
+      application/json:
+        schema:
+          $ref: "./common-schemas.yml#/schemas/Erro"
+
+  NaoVinculado:
+    description: Token válido mas usuário não vinculado a nenhuma pessoa
+    content:
+      application/json:
+        schema:
+          $ref: "./common-schemas.yml#/schemas/Erro"
+
+  SemPermissao:
+    description: Usuário autenticado, mas sem permissão para esta ação
+    content:
+      application/json:
+        schema:
+          $ref: "./common-schemas.yml#/schemas/Erro"

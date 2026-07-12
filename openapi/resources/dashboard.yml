@@ -1,0 +1,89 @@
+paths:
+  dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Resumo financeiro de uma competência
+      description: >
+        Retorna, para cada casa vinculada à pessoa autenticada, o total de receitas da casa,
+        o total de gastos e o saldo da casa, além do percentual de custeio e a parte devida
+        pela pessoa naquela competência.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: competencia
+          in: query
+          required: true
+          description: "Competência no formato MES-AA (ex.: JUN-26)"
+          schema:
+            type: string
+            example: JUN-26
+        - name: eixo
+          in: query
+          required: false
+          description: >
+            "caixa" (padrão): soma parcelas cuja data_caixa cai na competência
+            informada (vencimento da fatura, ou data_propria). "competencia":
+            soma todas as parcelas de compras cuja competencia (mês em que a
+            despesa foi decidida) bate com o valor informado, independente de
+            quando o valor efetivamente sai do caixa.
+          schema:
+            type: string
+            enum: [caixa, competencia]
+            default: caixa
+      responses:
+        "200":
+          description: Resumo do dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Dashboard"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+
+schemas:
+  DashboardCasa:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 2
+      nome:
+        type: string
+        example: Casa da Mamãe
+      receitas_total:
+        type: number
+        format: float
+        example: 4000.00
+      gastos_total:
+        type: number
+        format: float
+        example: 181.17
+      saldo_casa:
+        type: number
+        format: float
+        example: 3818.83
+      percentual_custeio:
+        type: number
+        format: float
+        example: 30
+      minha_parte:
+        type: number
+        format: float
+        example: 54.35
+
+  Dashboard:
+    type: object
+    properties:
+      competencia:
+        type: string
+        example: JUN-26
+      minha_parte_total:
+        type: number
+        format: float
+        example: 2679.88
+      casas:
+        type: array
+        items:
+          $ref: "#/schemas/DashboardCasa"

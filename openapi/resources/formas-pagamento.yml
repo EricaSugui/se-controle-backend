@@ -1,0 +1,154 @@
+paths:
+  formas-pagamento:
+    get:
+      tags: [Formas de Pagamento]
+      summary: Lista formas de pagamento
+      description: >
+        Leitura aberta a qualquer usuário autenticado. Escrita restrita a
+        admins do sistema (pessoas com admin_sistema = true).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/AtivoFiltro"
+      responses:
+        "200":
+          description: Lista de formas de pagamento
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/FormaPagamento"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+    post:
+      tags: [Formas de Pagamento]
+      summary: Cria uma forma de pagamento
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../components/common-schemas.yml#/schemas/NomeInput"
+      responses:
+        "201":
+          description: Forma de pagamento criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/FormaPagamento"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  formas-pagamento-id:
+    put:
+      tags: [Formas de Pagamento]
+      summary: Atualiza o nome de uma forma de pagamento
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../components/common-schemas.yml#/schemas/NomeInput"
+      responses:
+        "200":
+          description: Forma de pagamento atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/FormaPagamento"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: Já existe um registro com esse nome
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  formas-pagamento-id-ativar:
+    patch:
+      tags: [Formas de Pagamento]
+      summary: Ativa uma forma de pagamento
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Forma de pagamento ativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/FormaPagamento"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  formas-pagamento-id-desativar:
+    patch:
+      tags: [Formas de Pagamento]
+      summary: Desativa uma forma de pagamento
+      description: Requer que o usuário autenticado seja admin do sistema.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Forma de pagamento desativada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/FormaPagamento"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+schemas:
+  FormaPagamento:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 1
+      nome:
+        type: string
+        example: Pix
+      ativo:
+        type: boolean
+        example: true
+      created_at:
+        type: string
+        format: date-time

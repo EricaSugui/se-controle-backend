@@ -1,0 +1,59 @@
+paths:
+  auth-me:
+    get:
+      tags: [Autenticação]
+      summary: Retorna a pessoa vinculada ao token atual
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dados da pessoa autenticada
+          content:
+            application/json:
+              schema:
+                $ref: "./pessoas.yml#/schemas/Pessoa"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/NaoVinculado"
+
+  auth-vincular:
+    post:
+      tags: [Autenticação]
+      summary: Vincula o usuário Supabase a uma pessoa existente
+      description: >
+        Chamado uma única vez no primeiro acesso. Associa o supabase_user_id
+        (extraído do Bearer token) à pessoa informada. Falha se o usuário ou a
+        pessoa já estiver vinculado.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pessoa_id]
+              properties:
+                pessoa_id:
+                  type: integer
+                  example: 7
+      responses:
+        "200":
+          description: Pessoa atualizada com supabase_user_id
+          content:
+            application/json:
+              schema:
+                $ref: "./pessoas.yml#/schemas/Pessoa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: Usuário ou pessoa já vinculados
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
