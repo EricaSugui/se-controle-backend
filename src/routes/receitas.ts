@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
+import { ehCompetenciaValida } from '../utils/competencia';
 import { ehNumeroValido } from '../utils/numero';
 
 const router = Router();
@@ -80,6 +81,11 @@ router.post('/', autenticar, async (req, res, next) => {
     const erroValores = validarValoresReceita(valor_liquido, valor_bruto, descontos);
     if (erroValores) return res.status(400).json({ erro: erroValores });
 
+    // competencia é opcional, mas se vier precisa estar no formato canônico
+    if (competencia !== undefined && competencia !== null && !ehCompetenciaValida(competencia)) {
+      return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
+    }
+
     const { rows: membroRows } = await pool.query(
       'SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2',
       [casa_id, pessoaId]
@@ -134,6 +140,11 @@ router.put('/:id', autenticar, async (req, res, next) => {
 
     const erroValores = validarValoresReceita(valor_liquido, valor_bruto, descontos);
     if (erroValores) return res.status(400).json({ erro: erroValores });
+
+    // competencia é opcional, mas se vier precisa estar no formato canônico
+    if (competencia !== undefined && competencia !== null && !ehCompetenciaValida(competencia)) {
+      return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
+    }
 
     // lancado_por_id não é alterável — permanece com quem registrou originalmente
     const { rows } = await pool.query(

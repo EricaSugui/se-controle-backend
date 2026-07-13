@@ -369,6 +369,11 @@ schemas:
         example: 7
       competencia:
         type: string
+        pattern: "^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)-\\d{2}$"
+        description: >
+          Formato MMM-AA com mês em **português**, maiúsculo (JAN, FEV, MAR,
+          ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ). Valor fora do formato
+          é rejeitado com 400.
         example: JUN-26
       percentual:
         type: number

@@ -3,7 +3,7 @@ import { PoolClient } from 'pg';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
 import {
-  adicionarMesesCompetencia, adicionarMesesData, competenciaParaData, dataParaCompetencia, mesesEntre,
+  adicionarMesesCompetencia, adicionarMesesData, dataParaCompetencia, ehCompetenciaValida, mesesEntre,
 } from '../utils/competencia';
 import { calcularDatasFatura, calcularMesReferenciaFatura } from '../utils/fatura';
 import { ehNumeroValido } from '../utils/numero';
@@ -136,9 +136,7 @@ async function validarVinculoDespesaFixa(
   }
 
   const referencia = (competenciaReferencia ?? competenciaCompra) as string;
-  try {
-    competenciaParaData(referencia);
-  } catch {
+  if (!ehCompetenciaValida(referencia)) {
     throw new ErroValidacaoCompra(`competencia_referencia inválida: ${referencia}`);
   }
 
@@ -271,6 +269,10 @@ router.post('/', autenticar, async (req, res, next) => {
       return res.status(400).json({ erro: 'valor_parcela deve ser um número' });
     }
 
+    if (!ehCompetenciaValida(competencia)) {
+      return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
+    }
+
     const totalParcelas = total_parcelas || 1;
 
     const { rows: membroRows } = await pool.query(
@@ -358,6 +360,10 @@ router.put('/:id', autenticar, async (req, res, next) => {
 
     if (!ehNumeroValido(valor_parcela)) {
       return res.status(400).json({ erro: 'valor_parcela deve ser um número' });
+    }
+
+    if (!ehCompetenciaValida(competencia)) {
+      return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
     }
 
     const totalParcelas = total_parcelas || 1;

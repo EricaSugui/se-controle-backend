@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
-import { competenciaParaData } from '../utils/competencia';
+import { ehCompetenciaValida } from '../utils/competencia';
 import { ehNumeroValido } from '../utils/numero';
 import { calcularStatusDespesasFixas } from '../services/despesasFixasStatus';
 
@@ -111,12 +111,8 @@ router.get('/status', autenticar, async (req, res, next) => {
       }
     }
 
-    if (competencia !== undefined) {
-      try {
-        competenciaParaData(competencia as string);
-      } catch {
-        return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
-      }
+    if (competencia !== undefined && !ehCompetenciaValida(competencia)) {
+      return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
     }
 
     const itens = await calcularStatusDespesasFixas(pessoaId, {
