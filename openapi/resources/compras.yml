@@ -302,10 +302,13 @@ schemas:
         example: "2026-06-15"
       competencia:
         type: string
+        pattern: "^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)-\\d{2}$"
         description: >
-          Mês em que a despesa foi decidida/categorizada (formato MES-AA),
+          Mês em que a despesa foi decidida/categorizada (formato MMM-AA com
+          mês em **português**, maiúsculo: JAN, FEV, MAR, ABR, MAI, JUN, JUL,
+          AGO, SET, OUT, NOV, DEZ — atenção às siglas que diferem do inglês),
           independente de quando ela efetivamente sai do caixa (ver
-          `Parcela.data_caixa`).
+          `Parcela.data_caixa`). Valor fora do formato é rejeitado com 400.
         example: JUN-26
       total_parcelas:
         type: integer
@@ -329,9 +332,11 @@ schemas:
       competencia_referencia:
         type: string
         nullable: true
+        pattern: "^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)-\\d{2}$"
         description: >
           Competência do contrato a que este pagamento se refere (formato
-          MES-AA) — pode diferir de `competencia` se pago atrasado. Exige
+          MMM-AA com mês em português, maiúsculo; fora do formato é rejeitado
+          com 400) — pode diferir de `competencia` se pago atrasado. Exige
           `despesa_fixa_id`; se omitida com vínculo presente, assume a
           `competencia` da compra. Precisa estar dentro da vigência da
           despesa; para despesas anuais, deve usar o mês de início da

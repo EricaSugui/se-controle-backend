@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
+import { ehCompetenciaValida } from '../utils/competencia';
 
 const router = Router({ mergeParams: true });
 
@@ -62,6 +63,10 @@ router.post('/', autenticar, async (req, res, next) => {
 
     if (!pessoa_id || !competencia || percentual === undefined) {
       return res.status(400).json({ erro: 'pessoa_id, competencia e percentual são obrigatórios' });
+    }
+
+    if (!ehCompetenciaValida(competencia)) {
+      return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
     }
 
     const { rows } = await pool.query(

@@ -40,6 +40,14 @@ export function competenciaParaData(competencia: string): string {
   return `${ano}-${mes}-01`;
 }
 
+// Validação estrita de formato para entrada de usuário: exige MMM-AA em
+// português, maiúsculo (JAN..DEZ). Mais rígida que competenciaParaData, que
+// tolera minúsculas e ano ausente — aqui o valor vai ser gravado e comparado
+// por igualdade exata de string, então o formato canônico é obrigatório.
+export function ehCompetenciaValida(valor: unknown): valor is string {
+  return typeof valor === 'string' && /^[A-Z]{3}-\d{2}$/.test(valor) && MESES.includes(valor.slice(0, 3));
+}
+
 export function mesesEntre(competenciaInicio: string, competenciaFim: string): number {
   const [mesIniAbrev, anoIniAbrev] = competenciaInicio.split('-');
   const [mesFimAbrev, anoFimAbrev] = competenciaFim.split('-');
