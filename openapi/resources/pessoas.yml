@@ -132,6 +132,15 @@ schemas:
         format: email
         nullable: true
         example: erica@email.com
+      fuso_horario:
+        type: string
+        description: >
+          Fuso horário IANA da pessoa (ex. America/Sao_Paulo, America/Manaus,
+          Pacific/Honolulu). Usado para calcular o "hoje" nos status de
+          despesas/receitas fixas, no filtro vigente e no default de
+          encerramento. Opcional no PUT — omitido, mantém o atual; inválido é
+          rejeitado com 400. Default na criação: America/Sao_Paulo.
+        example: America/Sao_Paulo
 
   Pessoa:
     type: object
@@ -162,6 +171,10 @@ schemas:
           referência (categorias, formas de pagamento, origens de receita).
           Diferente de admin de casa (casa_pessoas.papel).
         example: false
+      fuso_horario:
+        type: string
+        description: Fuso horário IANA da pessoa. Default America/Sao_Paulo.
+        example: America/Sao_Paulo
       created_at:
         type: string
         format: date-time

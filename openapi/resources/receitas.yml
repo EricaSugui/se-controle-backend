@@ -12,6 +12,12 @@ paths:
         - bearerAuth: []
       parameters:
         - $ref: "../components/parameters.yml#/parameters/CompetenciaFiltro"
+        - name: receita_fixa_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filtra as receitas vinculadas a uma receita fixa (histórico de recebimentos do contrato).
       responses:
         "200":
           description: Lista de receitas
@@ -174,6 +180,28 @@ schemas:
           ABR, MAI, JUN, JUL, AGO, SET, OUT, NOV, DEZ). Valor fora do formato
           é rejeitado com 400.
         example: JUN-26
+      receita_fixa_id:
+        type: integer
+        nullable: true
+        description: >
+          Vincula esta receita a uma receita fixa (registro do recebimento de
+          uma competência do contrato). A receita fixa precisa pertencer ao
+          mesmo escopo: mesma casa, ou mesma pessoa da receita (vínculo
+          pessoal exige pessoa_id preenchido na receita). No PUT, omitir os
+          campos remove o vínculo.
+        example: null
+      competencia_referencia:
+        type: string
+        nullable: true
+        pattern: "^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)-\\d{2}$"
+        description: >
+          Competência do contrato a que este recebimento se refere (formato
+          MMM-AA em português; fora do formato é rejeitado com 400). Exige
+          `receita_fixa_id`; se omitida com vínculo presente, assume a
+          `competencia` da receita (400 se ambas ausentes). Precisa estar
+          dentro da vigência; para receitas anuais, deve usar o mês de início
+          da vigência (mês-âncora).
+        example: null
 
   Receita:
     allOf:
