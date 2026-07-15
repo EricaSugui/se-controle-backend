@@ -5,6 +5,7 @@ import { ehCompetenciaValida } from '../utils/competencia';
 import { hojeNoFuso } from '../utils/fuso';
 import { ehNumeroValido } from '../utils/numero';
 import { calcularStatusDespesasFixas } from '../services/despesasFixasStatus';
+import createExcecoesRouter from './excecoesFixasRouter';
 
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
@@ -230,6 +231,14 @@ router.put('/:id', autenticar, async (req, res, next) => {
     next(err);
   }
 });
+
+router.use('/:id/excecoes', createExcecoesRouter({
+  tabelaPai: 'despesas_fixas',
+  tabelaExcecao: 'despesa_fixa_excecoes',
+  fkPai: 'despesa_fixa_id',
+  campoValorEsperadoPai: 'valor_referencia',
+  nomePai: 'Despesa fixa',
+}));
 
 router.patch('/:id/encerrar', autenticar, async (req, res, next) => {
   try {
