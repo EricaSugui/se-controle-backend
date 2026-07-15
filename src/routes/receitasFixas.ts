@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
+import { ehCompetenciaValida } from '../utils/competencia';
 import { ehNumeroValido } from '../utils/numero';
+import { calcularStatusReceitasFixas } from '../services/receitasFixasStatus';
 
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
@@ -93,6 +95,34 @@ router.get('/', autenticar, async (req, res, next) => {
     query += ' ORDER BY rf.descricao, rf.id';
     const { rows } = await pool.query(query, params);
     res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Precisa vir antes de GET /:id — senão o Express casa "status" como :id
+router.get('/status', autenticar, async (req, res, next) => {
+  try {
+    const pessoaId = (req as any).usuario.id;
+    const { competencia, folga_dias } = req.query;
+
+    let folgaDias: number | undefined;
+    if (folga_dias !== undefined) {
+      folgaDias = Number(folga_dias);
+      if (!Number.isInteger(folgaDias) || folgaDias < 0) {
+        return res.status(400).json({ erro: 'folga_dias deve ser um inteiro maior ou igual a zero' });
+      }
+    }
+
+    if (competencia !== undefined && !ehCompetenciaValida(competencia)) {
+      return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
+    }
+
+    const itens = await calcularStatusReceitasFixas(pessoaId, {
+      competencia: competencia as string | undefined,
+      folgaDias,
+    });
+    res.json(itens);
   } catch (err) {
     next(err);
   }
