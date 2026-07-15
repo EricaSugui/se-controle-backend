@@ -1,12 +1,13 @@
 paths:
-  despesas-fixas:
+  receitas-fixas:
     get:
-      tags: [Despesas Fixas]
-      summary: Lista despesas fixas
+      tags: [Receitas Fixas]
+      summary: Lista receitas fixas
       description: >
-        Retorna despesas fixas pessoais do usuário autenticado (`pessoa_id`) e
+        Retorna receitas fixas pessoais do usuário autenticado (`pessoa_id`) e
         das casas das quais ele é membro (`casa_id`). "Vigente" é derivado da
-        vigência: `vigente_ate` nulo ou maior/igual a hoje.
+        vigência: `vigente_ate` nulo ou maior/igual a hoje (no fuso horário do
+        usuário).
       security:
         - bearerAuth: []
       parameters:
@@ -32,26 +33,27 @@ paths:
             false = apenas encerradas (vigente_ate < hoje).
       responses:
         "200":
-          description: Lista de despesas fixas
+          description: Lista de receitas fixas
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/schemas/DespesaFixa"
+                  $ref: "#/schemas/ReceitaFixa"
         "401":
           $ref: "../components/responses.yml#/responses/NaoAutenticado"
     post:
-      tags: [Despesas Fixas]
-      summary: Cria uma despesa fixa
+      tags: [Receitas Fixas]
+      summary: Cria uma receita fixa
       description: >
-        Exige exatamente um entre `pessoa_id` e `casa_id`. Despesa fixa pessoal
-        só pode ser criada pelo próprio usuário; despesa de casa exige que o
-        usuário seja admin da casa. Para versionar um contrato (ex.: reajuste
-        de aluguel), encerre o registro atual e crie um novo apontando
-        `despesa_fixa_anterior_id` para ele — a anterior precisa estar
-        encerrada e pertencer ao mesmo escopo. `lancado_por_id` é sempre o
-        usuário autenticado.
+        Exige exatamente um entre `pessoa_id` e `casa_id`. Receita fixa pessoal
+        só pode ser criada pelo próprio usuário; receita de casa exige que o
+        usuário seja admin da casa. Para versionar (ex.: mudança de salário),
+        encerre o registro atual e crie um novo apontando
+        `receita_fixa_anterior_id` para ele — a anterior precisa estar
+        encerrada e pertencer ao mesmo escopo. Receita pontual/avulsa continua
+        indo direto em POST /receitas, sem passar por aqui. `lancado_por_id` é
+        sempre o usuário autenticado.
       security:
         - bearerAuth: []
       requestBody:
@@ -59,14 +61,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/schemas/DespesaFixaInput"
+              $ref: "#/schemas/ReceitaFixaInput"
       responses:
         "201":
-          description: Despesa fixa criada
+          description: Receita fixa criada
           content:
             application/json:
               schema:
-                $ref: "#/schemas/DespesaFixa"
+                $ref: "#/schemas/ReceitaFixa"
         "400":
           $ref: "../components/responses.yml#/responses/ErroValidacao"
         "401":
@@ -74,21 +76,21 @@ paths:
         "403":
           $ref: "../components/responses.yml#/responses/SemPermissao"
 
-  despesas-fixas-status:
+  receitas-fixas-status:
     get:
-      tags: [Despesas Fixas]
-      summary: Status das competências esperadas (gap detection)
+      tags: [Receitas Fixas]
+      summary: Status das competências esperadas (recebimentos)
       description: >
-        Gera as competências esperadas de cada despesa fixa visível — da
+        Gera as competências esperadas de cada receita fixa visível — da
         vigência até hoje; mensal de 1 em 1 mês, anual de 12 em 12 a partir do
-        mês-âncora (mês de `vigente_desde`) — e compara com as compras
-        vinculadas (`despesa_fixa_id` + `competencia_referencia`).
+        mês-âncora (mês de `vigente_desde`) — e compara com as receitas
+        vinculadas (`receita_fixa_id` + `competencia_referencia`).
         "Hoje" é calculado no fuso horário do usuário (`pessoas.fuso_horario`).
-        Sem `competencia`: retorna apenas itens em aberto (`em_dia` da
-        competência corrente, `vencendo_hoje` e `em_atraso` retroativos).
-        Com `competencia`: retorna a visão de fechamento daquele mês,
-        incluindo itens com status `pago`. Itens ordenados por severidade
-        (em_atraso, vencendo_hoje, em_dia, pago) e data esperada.
+        Sem `competencia`: retorna apenas itens em aberto. Com `competencia`:
+        visão de fechamento daquele mês, incluindo itens `recebido`. Itens
+        ordenados por severidade (atrasado, aguardando, recebido) e data
+        esperada. Vigência encerrada simplesmente para de gerar linhas — não
+        há estado "interrompida".
       security:
         - bearerAuth: []
       parameters:
@@ -107,28 +109,28 @@ paths:
             minimum: 0
             default: 3
           description: >
-            Dias de tolerância após dia_esperado antes de classificar como
-            em_atraso (janela do status vencendo_hoje).
+            Dias de tolerância após dia_esperado_recebimento antes de
+            classificar como atrasado.
       responses:
         "200":
-          description: Itens de status por despesa fixa e competência
+          description: Itens de status por receita fixa e competência
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/schemas/DespesaFixaStatusItem"
+                  $ref: "#/schemas/ReceitaFixaStatusItem"
         "400":
           $ref: "../components/responses.yml#/responses/ErroValidacao"
         "401":
           $ref: "../components/responses.yml#/responses/NaoAutenticado"
 
-  despesas-fixas-id:
+  receitas-fixas-id:
     get:
-      tags: [Despesas Fixas]
-      summary: Busca uma despesa fixa pelo id
+      tags: [Receitas Fixas]
+      summary: Busca uma receita fixa pelo id
       description: >
-        Requer que a despesa fixa seja pessoal do usuário autenticado, ou de
+        Requer que a receita fixa seja pessoal do usuário autenticado, ou de
         casa da qual ele é membro.
       security:
         - bearerAuth: []
@@ -136,25 +138,24 @@ paths:
         - $ref: "../components/parameters.yml#/parameters/Id"
       responses:
         "200":
-          description: Despesa fixa encontrada
+          description: Receita fixa encontrada
           content:
             application/json:
               schema:
-                $ref: "#/schemas/DespesaFixa"
+                $ref: "#/schemas/ReceitaFixa"
         "401":
           $ref: "../components/responses.yml#/responses/NaoAutenticado"
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
     put:
-      tags: [Despesas Fixas]
-      summary: Atualiza uma despesa fixa
+      tags: [Receitas Fixas]
+      summary: Atualiza uma receita fixa
       description: >
-        Requer que a despesa seja pessoal do usuário autenticado, ou de casa
+        Requer que a receita seja pessoal do usuário autenticado, ou de casa
         da qual ele é admin. `pessoa_id`/`casa_id` (escopo),
-        `despesa_fixa_anterior_id` e `lancado_por_id` não são alteráveis.
-        Para reajuste de contrato de valor fixo, a orientação é versionar
-        (encerrar + criar nova com `despesa_fixa_anterior_id`) em vez de
-        editar o valor.
+        `receita_fixa_anterior_id` e `lancado_por_id` não são alteráveis.
+        Para mudança de salário/contrato, a orientação é versionar (encerrar +
+        criar nova com `receita_fixa_anterior_id`) em vez de editar o valor.
       security:
         - bearerAuth: []
       parameters:
@@ -164,14 +165,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/schemas/DespesaFixaInput"
+              $ref: "#/schemas/ReceitaFixaInput"
       responses:
         "200":
-          description: Despesa fixa atualizada
+          description: Receita fixa atualizada
           content:
             application/json:
               schema:
-                $ref: "#/schemas/DespesaFixa"
+                $ref: "#/schemas/ReceitaFixa"
         "400":
           $ref: "../components/responses.yml#/responses/ErroValidacao"
         "401":
@@ -181,15 +182,15 @@ paths:
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
 
-  despesas-fixas-id-encerrar:
+  receitas-fixas-id-encerrar:
     patch:
-      tags: [Despesas Fixas]
-      summary: Encerra uma despesa fixa
+      tags: [Receitas Fixas]
+      summary: Encerra uma receita fixa
       description: >
-        Define `vigente_ate` (default hoje, se não informado no corpo). Não há
-        DELETE — o ciclo de vida é encerramento por vigência. Falha se a
-        despesa já estiver encerrada. Uma despesa encerrada hoje continua
-        vigente até o fim do dia.
+        Define `vigente_ate` (default hoje, no fuso horário do usuário). É o
+        mecanismo para marcar fim de recorrência (ex. demissão) — não há
+        DELETE nem campo de status. Falha se já estiver encerrada. Encerrada
+        hoje continua vigente até o fim do dia.
       security:
         - bearerAuth: []
       parameters:
@@ -209,11 +210,11 @@ paths:
                   example: "2026-12-31"
       responses:
         "200":
-          description: Despesa fixa encerrada
+          description: Receita fixa encerrada
           content:
             application/json:
               schema:
-                $ref: "#/schemas/DespesaFixa"
+                $ref: "#/schemas/ReceitaFixa"
         "400":
           $ref: "../components/responses.yml#/responses/ErroValidacao"
         "401":
@@ -224,53 +225,60 @@ paths:
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
 
 schemas:
-  DespesaFixaInput:
+  ReceitaFixaInput:
     type: object
-    required: [categoria_id, descricao, tipo_valor, valor_referencia, periodicidade, dia_esperado, vigente_desde]
+    required: [origem_id, descricao, tipo_confiabilidade, periodicidade, dia_esperado_recebimento, vigente_desde]
     description: >
       pessoa_id e casa_id são mutuamente exclusivos — informe exatamente um
-      dos dois na criação (não são alteráveis depois). Despesa pessoal
+      dos dois na criação (não são alteráveis depois). Receita pessoal
       (pessoa_id) só pode ser criada para o próprio usuário autenticado;
-      despesa de casa (casa_id) exige que o usuário seja admin daquela casa.
+      receita de casa (casa_id) exige que o usuário seja admin daquela casa.
     properties:
       casa_id:
         type: integer
         nullable: true
-        description: Preencher para despesa da casa. Mutuamente exclusivo com pessoa_id.
+        description: Preencher para receita da casa. Mutuamente exclusivo com pessoa_id.
         example: 1
       pessoa_id:
         type: integer
         nullable: true
-        description: Preencher para despesa pessoal. Mutuamente exclusivo com casa_id.
+        description: Preencher para receita pessoal. Mutuamente exclusivo com casa_id.
         example: null
-      categoria_id:
+      origem_id:
         type: integer
-        example: 3
+        description: FK para o catálogo origens_receita (salário, rendimentos, etc.).
+        example: 1
       descricao:
         type: string
         description: Nome específico da instância do contrato.
-        example: Aluguel - apto Campinas
-      tipo_valor:
+        example: Salário CLT - Empresa X
+      tipo_confiabilidade:
         type: string
-        enum: [fixo, variavel_estimado]
-        description: fixo = valor contratual; variavel_estimado = estimativa corrente (ex. conta de luz).
-        example: fixo
-      valor_referencia:
+        enum: [fixa, variavel]
+        description: >
+          fixa = valor contratual confiável (CLT, pensão); variavel = receita
+          recorrente de valor incerto (freelance recorrente).
+        example: fixa
+      valor_esperado:
         type: number
         format: float
-        description: Valor fixo real ou estimativa corrente, conforme tipo_valor.
-        example: 1500
+        nullable: true
+        description: >
+          Valor esperado por competência. Pode ser nulo para receitas de
+          confiabilidade variável sem estimativa.
+        example: 5000
       periodicidade:
         type: string
         enum: [mensal, anual]
+        description: Anual cobre casos como 13º (âncora no mês de vigente_desde).
         example: mensal
-      dia_esperado:
+      dia_esperado_recebimento:
         type: integer
         minimum: 1
         maximum: 31
         description: >
-          Dia do mês esperado para o vencimento/lançamento. Em meses mais
-          curtos, é clampado ao último dia (31 vira 28/29 em fevereiro).
+          Dia do mês esperado para o recebimento. Em meses mais curtos, é
+          clampado ao último dia (31 vira 28/29 em fevereiro).
         example: 5
       vigente_desde:
         type: string
@@ -281,21 +289,21 @@ schemas:
         format: date
         nullable: true
         description: >
-          Nulo = ainda vigente. "Ativa" é derivado da vigência, não
-          armazenado.
+          Nulo = ainda vigente. Fechar vigente_ate é o mecanismo de fim de
+          recorrência (ex. demissão).
         example: null
-      despesa_fixa_anterior_id:
+      receita_fixa_anterior_id:
         type: integer
         nullable: true
         description: >
-          Versão anterior deste contrato (versionamento por sucessão). A
-          anterior precisa estar encerrada e pertencer ao mesmo escopo. Não é
-          alterável após a criação.
+          Versão anterior deste contrato (versionamento por sucessão, ex.
+          mudança de salário). A anterior precisa estar encerrada e pertencer
+          ao mesmo escopo. Não é alterável após a criação.
         example: null
 
-  DespesaFixa:
+  ReceitaFixa:
     allOf:
-      - $ref: "#/schemas/DespesaFixaInput"
+      - $ref: "#/schemas/ReceitaFixaInput"
       - type: object
         properties:
           id:
@@ -307,27 +315,27 @@ schemas:
             readOnly: true
             description: Definido automaticamente pelo servidor a partir do usuário autenticado na criação; não é alterável.
             example: 7
-          categoria_nome:
+          origem_nome:
             type: string
             readOnly: true
             description: Presente nas respostas de listagem e busca (GET).
-            example: Moradia
+            example: Salário
           created_at:
             type: string
             format: date-time
 
-  DespesaFixaStatusItem:
+  ReceitaFixaStatusItem:
     type: object
     description: >
-      Uma competência esperada de uma despesa fixa, com sua situação frente
-      às compras vinculadas.
+      Uma competência esperada de uma receita fixa, com sua situação frente
+      às receitas vinculadas.
     properties:
-      despesa_fixa_id:
+      receita_fixa_id:
         type: integer
         example: 1
       descricao:
         type: string
-        example: Aluguel - apto Campinas
+        example: Salário CLT - Empresa X
       casa_id:
         type: integer
         nullable: true
@@ -336,20 +344,21 @@ schemas:
         type: integer
         nullable: true
         example: null
-      categoria_id:
+      origem_id:
         type: integer
-        example: 3
-      categoria_nome:
+        example: 1
+      origem_nome:
         type: string
-        example: Moradia
-      tipo_valor:
+        example: Salário
+      tipo_confiabilidade:
         type: string
-        enum: [fixo, variavel_estimado]
-        example: fixo
-      valor_referencia:
+        enum: [fixa, variavel]
+        example: fixa
+      valor_esperado:
         type: number
         format: float
-        example: 1500
+        nullable: true
+        example: 5000
       periodicidade:
         type: string
         enum: [mensal, anual]
@@ -361,13 +370,13 @@ schemas:
       data_esperada:
         type: string
         format: date
-        description: dia_esperado aplicado à competência (clampado ao último dia do mês).
+        description: dia_esperado_recebimento aplicado à competência (clampado ao último dia do mês).
         example: "2026-07-05"
       status:
         type: string
-        enum: [pago, em_dia, vencendo_hoje, em_atraso]
+        enum: [recebido, aguardando, atrasado]
         description: >
-          pago = existe compra vinculada à competência; em_dia = ainda antes
-          da data esperada; vencendo_hoje = entre a data esperada e a folga;
-          em_atraso = passou da folga sem pagamento.
-        example: em_atraso
+          recebido = existe receita vinculada à competência; aguardando =
+          ainda dentro da data esperada + folga; atrasado = passou da folga
+          sem recebimento.
+        example: atrasado

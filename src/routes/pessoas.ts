@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
+import { ehFusoValido } from '../utils/fuso';
 
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
@@ -96,12 +97,17 @@ router.put('/:id', autenticar, async (req, res, next) => {
       return res.status(403).json({ erro: 'Você só pode editar seus próprios dados' });
     }
 
-    const { nome, email } = req.body;
+    const { nome, email, fuso_horario } = req.body;
     if (!nome) return res.status(400).json({ erro: 'nome é obrigatório' });
 
+    // fuso_horario é opcional: omitido, mantém o atual (IANA, ex: America/Manaus)
+    if (fuso_horario !== undefined && fuso_horario !== null && !ehFusoValido(fuso_horario)) {
+      return res.status(400).json({ erro: `fuso_horario inválido: ${fuso_horario} (use um fuso IANA, ex: America/Sao_Paulo)` });
+    }
+
     const { rows } = await pool.query(
-      'UPDATE pessoas SET nome = $1, email = $2 WHERE id = $3 RETURNING *',
-      [nome, orNull(email), req.params.id]
+      'UPDATE pessoas SET nome = $1, email = $2, fuso_horario = COALESCE($3, fuso_horario) WHERE id = $4 RETURNING *',
+      [nome, orNull(email), orNull(fuso_horario), req.params.id]
     );
 
     if (rows.length === 0) return res.status(404).json({ erro: 'Pessoa não encontrada' });

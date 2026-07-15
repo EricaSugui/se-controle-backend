@@ -89,6 +89,39 @@ ocorrências pagas são compras normais vinculadas a ele.
   Enquanto não existem, o caminho é ajustar a vigência ou conviver com o
   item em aberto, e versionar em duas chamadas.
 
+### Receitas fixas — espelho de despesas fixas
+
+`receitas_fixas` segue exatamente as decisões de despesas fixas (vigência
+derivada, sem DELETE, versionamento por sucessão via
+`receita_fixa_anterior_id`, escopo imutável, vínculo das ocorrências em
+`receitas` com `competencia_referencia`, mês-âncora para anuais). Diferenças
+deliberadas:
+
+- **Catálogo**: `origem_id` → `origens_receita` (o catálogo de receitas),
+  não `categorias`.
+- **`valor_esperado` é opcional** — receita recorrente de valor incerto
+  (freelance) pode não ter estimativa. `tipo_confiabilidade`
+  (`fixa`/`variavel`) distingue CLT de freelance na mesma tabela.
+- **`dia_esperado_recebimento`** — nome sem conotação de cobrança.
+- **Status com 3 estados**: `recebido` / `aguardando` / `atrasado` (sem o
+  intermediário "vencendo hoje" das despesas; a folga é só a régua entre
+  aguardando e atrasado). Sem estado "interrompida": vigência encerrada para
+  de gerar linhas.
+- Receita pontual/avulsa continua indo direto em `POST /receitas`, sem
+  passar por template.
+- **Vínculo pessoal exige `pessoa_id` na receita** (em receitas o campo é
+  opcional); e como `competencia` também é opcional, vincular sem nenhuma
+  das duas competências é 400.
+
+### Fuso horário — "hoje" é do usuário, não do servidor
+
+Toda lógica sensível a "hoje" (status de despesas/receitas fixas, filtro
+`?vigente=`, default do encerrar) usa o fuso da pessoa autenticada
+(`pessoas.fuso_horario`, IANA, default `America/Sao_Paulo`), não UTC nem o
+relógio do servidor. Editável via `PUT /pessoas/:id`; validado com `Intl`
+(qualquer fuso IANA). Datas **gravadas** (`data`, `competencia`) sempre foram
+fornecidas pelo cliente e não são afetadas.
+
 ### Por quê
 
 - Catálogos (categorias, formas de pagamento, origens de receita) mudam
