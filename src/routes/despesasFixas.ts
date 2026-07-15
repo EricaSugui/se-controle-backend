@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
 import { ehCompetenciaValida } from '../utils/competencia';
+import { hojeNoFuso } from '../utils/fuso';
 import { ehNumeroValido } from '../utils/numero';
 import { calcularStatusDespesasFixas } from '../services/despesasFixasStatus';
 
@@ -84,9 +85,11 @@ router.get('/', autenticar, async (req, res, next) => {
       query += ` AND df.pessoa_id = $${params.length}`;
     }
     if (vigente === 'true') {
-      query += ' AND (df.vigente_ate IS NULL OR df.vigente_ate >= CURRENT_DATE)';
+      params.push(hojeNoFuso((req as any).usuario.fuso_horario));
+      query += ` AND (df.vigente_ate IS NULL OR df.vigente_ate >= $${params.length})`;
     } else if (vigente === 'false') {
-      query += ' AND df.vigente_ate < CURRENT_DATE';
+      params.push(hojeNoFuso((req as any).usuario.fuso_horario));
+      query += ` AND df.vigente_ate < $${params.length}`;
     }
 
     query += ' ORDER BY df.descricao, df.id';
@@ -118,6 +121,7 @@ router.get('/status', autenticar, async (req, res, next) => {
     const itens = await calcularStatusDespesasFixas(pessoaId, {
       competencia: competencia as string | undefined,
       folgaDias,
+      fusoHorario: (req as any).usuario.fuso_horario,
     });
     res.json(itens);
   } catch (err) {
@@ -244,9 +248,11 @@ router.patch('/:id/encerrar', autenticar, async (req, res, next) => {
       return res.status(400).json({ erro: 'vigente_ate deve estar no formato AAAA-MM-DD' });
     }
 
+    // default: hoje no fuso de quem encerra (não o CURRENT_DATE do servidor)
+    const vigenteAteEfetiva = orNull(vigente_ate) ?? hojeNoFuso((req as any).usuario.fuso_horario);
     const { rows } = await pool.query(
-      'UPDATE despesas_fixas SET vigente_ate = COALESCE($1, CURRENT_DATE) WHERE id = $2 RETURNING *',
-      [orNull(vigente_ate), req.params.id]
+      'UPDATE despesas_fixas SET vigente_ate = $1 WHERE id = $2 RETURNING *',
+      [vigenteAteEfetiva, req.params.id]
     );
     res.json(rows[0]);
   } catch (err) {

@@ -1,5 +1,6 @@
 import pool from '../db';
 import { adicionarMesesCompetencia, competenciaParaData, dataParaCompetencia, mesesEntre } from '../utils/competencia';
+import { hojeNoFuso } from '../utils/fuso';
 
 export type StatusDespesaFixa = 'pago' | 'em_dia' | 'vencendo_hoje' | 'em_atraso';
 
@@ -52,9 +53,10 @@ function calcularDataEsperada(competencia: string, diaEsperado: number): string 
 // - sem `competencia`: retorna só o que está em aberto
 export async function calcularStatusDespesasFixas(
   pessoaId: number,
-  opcoes: { competencia?: string; folgaDias?: number } = {}
+  opcoes: { competencia?: string; folgaDias?: number; fusoHorario?: string } = {}
 ): Promise<ItemStatusDespesaFixa[]> {
-  const hoje = new Date().toISOString().slice(0, 10);
+  // "hoje" no fuso de quem consulta (default America/Sao_Paulo)
+  const hoje = hojeNoFuso(opcoes.fusoHorario);
   const folgaDias = opcoes.folgaDias ?? FOLGA_DIAS_PADRAO;
 
   const { rows: despesas } = await pool.query(

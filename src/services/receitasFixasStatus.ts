@@ -1,5 +1,6 @@
 import pool from '../db';
 import { adicionarMesesCompetencia, competenciaParaData, dataParaCompetencia, mesesEntre } from '../utils/competencia';
+import { hojeNoFuso } from '../utils/fuso';
 
 // Diferente do lado das despesas (4 estados), receitas fixas usam 3:
 // recebido | aguardando (ainda dentro do esperado + folga) | atrasado.
@@ -52,9 +53,11 @@ function calcularDataEsperada(competencia: string, diaEsperado: number): string 
 // - sem `competencia`: retorna só o que está em aberto
 export async function calcularStatusReceitasFixas(
   pessoaId: number,
-  opcoes: { competencia?: string; folgaDias?: number } = {}
+  opcoes: { competencia?: string; folgaDias?: number; fusoHorario?: string } = {}
 ): Promise<ItemStatusReceitaFixa[]> {
-  const hoje = new Date().toISOString().slice(0, 10);
+  // "hoje" no fuso de quem consulta — a mesma linha pode estar 'aguardando'
+  // para quem vê do Havaí e 'atrasado' para quem vê de São Paulo
+  const hoje = hojeNoFuso(opcoes.fusoHorario);
   const folgaDias = opcoes.folgaDias ?? FOLGA_DIAS_PADRAO;
 
   const { rows: receitasFixas } = await pool.query(
