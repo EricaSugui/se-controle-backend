@@ -1,11 +1,71 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
-import { ehCompetenciaValida } from '../utils/competencia';
+import { dataParaCompetencia, ehCompetenciaValida, mesesEntre } from '../utils/competencia';
 import { ehNumeroValido } from '../utils/numero';
 
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
+
+// Valida o vínculo receita → receita fixa e resolve a competencia_referencia
+// efetiva (default: a competência da própria receita, quando presente).
+async function validarVinculoReceitaFixa(
+  receitaFixaId: unknown,
+  competenciaReferencia: unknown,
+  casaId: unknown,
+  pessoaReceitaId: unknown,
+  competenciaReceita: unknown
+): Promise<{ erro: string } | { erro: null; receitaFixaId: number | null; competenciaReferencia: string | null }> {
+  if (receitaFixaId === undefined || receitaFixaId === null) {
+    if (competenciaReferencia !== undefined && competenciaReferencia !== null) {
+      return { erro: 'competencia_referencia exige receita_fixa_id' };
+    }
+    return { erro: null, receitaFixaId: null, competenciaReferencia: null };
+  }
+
+  const { rows } = await pool.query(
+    `SELECT id, casa_id, pessoa_id, periodicidade,
+            vigente_desde::text AS vigente_desde, vigente_ate::text AS vigente_ate
+     FROM receitas_fixas WHERE id = $1`,
+    [receitaFixaId]
+  );
+  if (rows.length === 0) return { erro: 'Receita fixa não encontrada' };
+  const receitaFixa = rows[0];
+
+  if (receitaFixa.casa_id !== null) {
+    if (receitaFixa.casa_id !== Number(casaId)) {
+      return { erro: 'receita fixa não pertence ao escopo desta receita (casa diferente)' };
+    }
+  } else {
+    if (pessoaReceitaId === undefined || pessoaReceitaId === null) {
+      return { erro: 'para vincular a uma receita fixa pessoal, informe pessoa_id na receita' };
+    }
+    if (receitaFixa.pessoa_id !== Number(pessoaReceitaId)) {
+      return { erro: 'receita fixa não pertence ao escopo desta receita (pessoa diferente)' };
+    }
+  }
+
+  const referencia = competenciaReferencia ?? competenciaReceita;
+  if (referencia === undefined || referencia === null) {
+    return { erro: 'informe competencia_referencia (ou competencia na receita) para vincular à receita fixa' };
+  }
+  if (!ehCompetenciaValida(referencia)) {
+    return { erro: `competencia_referencia inválida: ${referencia}` };
+  }
+
+  const competenciaInicio = dataParaCompetencia(receitaFixa.vigente_desde);
+  const mesesDesdeInicio = mesesEntre(competenciaInicio, referencia);
+  const foraDoFim = receitaFixa.vigente_ate !== null && mesesEntre(referencia, dataParaCompetencia(receitaFixa.vigente_ate)) < 0;
+  if (mesesDesdeInicio < 0 || foraDoFim) {
+    return { erro: 'competencia_referencia fora da vigência da receita fixa' };
+  }
+
+  if (receitaFixa.periodicidade === 'anual' && mesesDesdeInicio % 12 !== 0) {
+    return { erro: 'para receita fixa anual, competencia_referencia deve usar o mês de início da vigência' };
+  }
+
+  return { erro: null, receitaFixaId: receitaFixa.id, competenciaReferencia: referencia };
+}
 
 function validarValoresReceita(valor_liquido: unknown, valor_bruto: unknown, descontos: unknown): string | null {
   if (!ehNumeroValido(valor_liquido)) return 'valor_liquido deve ser um número';
@@ -28,7 +88,7 @@ function podeEditarExpr(paramIndex: number): string {
 
 router.get('/', autenticar, async (req, res, next) => {
   try {
-    const { competencia } = req.query;
+    const { competencia, receita_fixa_id } = req.query;
     const pessoaId = (req as any).usuario.id;
     const params: unknown[] = [pessoaId];
     let query = `
@@ -42,6 +102,11 @@ router.get('/', autenticar, async (req, res, next) => {
     if (competencia !== undefined) {
       params.push(competencia);
       query += ` AND r.competencia = $${params.length}`;
+    }
+
+    if (receita_fixa_id !== undefined) {
+      params.push(receita_fixa_id);
+      query += ` AND r.receita_fixa_id = $${params.length}`;
     }
 
     query += ' ORDER BY r.data';
@@ -71,7 +136,7 @@ router.get('/:id', autenticar, async (req, res, next) => {
 
 router.post('/', autenticar, async (req, res, next) => {
   try {
-    const { casa_id, pessoa_id, origem_id, observacao, valor_bruto, descontos, valor_liquido, data, competencia } = req.body;
+    const { casa_id, pessoa_id, origem_id, observacao, valor_bruto, descontos, valor_liquido, data, competencia, receita_fixa_id, competencia_referencia } = req.body;
     const pessoaId = (req as any).usuario.id;
 
     if (!casa_id || valor_liquido === undefined) {
@@ -86,6 +151,9 @@ router.post('/', autenticar, async (req, res, next) => {
       return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
     }
 
+    const vinculo = await validarVinculoReceitaFixa(receita_fixa_id, competencia_referencia, casa_id, pessoa_id, competencia);
+    if (vinculo.erro !== null) return res.status(400).json({ erro: vinculo.erro });
+
     const { rows: membroRows } = await pool.query(
       'SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2',
       [casa_id, pessoaId]
@@ -95,9 +163,9 @@ router.post('/', autenticar, async (req, res, next) => {
     // lancado_por_id é sempre o usuário autenticado, nunca o valor enviado pelo cliente
     const { rows } = await pool.query(
       `INSERT INTO receitas
-         (casa_id, pessoa_id, lancado_por_id, origem_id, observacao, valor_bruto, descontos, valor_liquido, data, competencia)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [casa_id, orNull(pessoa_id), pessoaId, orNull(origem_id), orNull(observacao), orNull(valor_bruto), orNull(descontos), valor_liquido, orNull(data), orNull(competencia)]
+         (casa_id, pessoa_id, lancado_por_id, origem_id, observacao, valor_bruto, descontos, valor_liquido, data, competencia, receita_fixa_id, competencia_referencia)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [casa_id, orNull(pessoa_id), pessoaId, orNull(origem_id), orNull(observacao), orNull(valor_bruto), orNull(descontos), valor_liquido, orNull(data), orNull(competencia), vinculo.receitaFixaId, vinculo.competenciaReferencia]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -132,7 +200,7 @@ router.put('/:id', autenticar, async (req, res, next) => {
     if (autorizacao === 'nao_encontrado') return res.status(404).json({ erro: 'Receita não encontrada' });
     if (autorizacao === 'sem_permissao') return res.status(403).json({ erro: 'Você não tem permissão para editar esta receita' });
 
-    const { casa_id, pessoa_id, origem_id, observacao, valor_bruto, descontos, valor_liquido, data, competencia } = req.body;
+    const { casa_id, pessoa_id, origem_id, observacao, valor_bruto, descontos, valor_liquido, data, competencia, receita_fixa_id, competencia_referencia } = req.body;
 
     if (!casa_id || valor_liquido === undefined) {
       return res.status(400).json({ erro: 'casa_id e valor_liquido são obrigatórios' });
@@ -146,13 +214,17 @@ router.put('/:id', autenticar, async (req, res, next) => {
       return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
     }
 
+    const vinculo = await validarVinculoReceitaFixa(receita_fixa_id, competencia_referencia, casa_id, pessoa_id, competencia);
+    if (vinculo.erro !== null) return res.status(400).json({ erro: vinculo.erro });
+
     // lancado_por_id não é alterável — permanece com quem registrou originalmente
     const { rows } = await pool.query(
       `UPDATE receitas
        SET casa_id = $1, pessoa_id = $2, origem_id = $3, observacao = $4,
-           valor_bruto = $5, descontos = $6, valor_liquido = $7, data = $8, competencia = $9
-       WHERE id = $10 RETURNING *`,
-      [casa_id, orNull(pessoa_id), orNull(origem_id), orNull(observacao), orNull(valor_bruto), orNull(descontos), valor_liquido, orNull(data), orNull(competencia), req.params.id]
+           valor_bruto = $5, descontos = $6, valor_liquido = $7, data = $8, competencia = $9,
+           receita_fixa_id = $10, competencia_referencia = $11
+       WHERE id = $12 RETURNING *`,
+      [casa_id, orNull(pessoa_id), orNull(origem_id), orNull(observacao), orNull(valor_bruto), orNull(descontos), valor_liquido, orNull(data), orNull(competencia), vinculo.receitaFixaId, vinculo.competenciaReferencia, req.params.id]
     );
 
     res.json(rows[0]);
