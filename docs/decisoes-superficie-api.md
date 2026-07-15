@@ -113,6 +113,34 @@ deliberadas:
   opcional); e como `competencia` também é opcional, vincular sem nenhuma
   das duas competências é 400.
 
+### Exceções de despesas/receitas fixas — desvio pontual sem versionar
+
+`despesa_fixa_excecoes` e `receita_fixa_excecoes` registram desvios pontuais
+de uma competência de contrato vigente. Versionamento (`*_anterior_id`) é
+para mudança **permanente**; exceção é para o mês fora do padrão.
+
+- **Tabelas irmãs, não genérica** — FK direta NOT NULL é mais forte que duas
+  FKs nullable + CHECK, e evita acoplar domínios que já divergiram
+  semanticamente (vencimento vs expectativa, atraso vs interrupção). Visão
+  unificada futura, se necessária: VIEW com UNION.
+- **Papel duplo**: (1) justificar competência que não terá lançamento
+  (isenção, carência) — vira status `justificado`, sai do "em aberto" e
+  aparece na visão por competência; (2) anotar desvio de valor de ocorrência
+  paga/recebida — auditoria pura, não altera o status (**lançamento vence
+  exceção**: pago/recebido = aconteceu; justificado = não aconteceu, com
+  motivo).
+- **O status atual compara existência, não valor** — `valor_ocorrido` e
+  `valor_esperado_original` (snapshot do valor do pai no momento, preenchido
+  pelo servidor) ficam como documentação e preparam uma futura checagem de
+  coerência de valor, fora de escopo.
+- **Uma exceção por competência** (UNIQUE; 409 em duplicata).
+- **Exceção TEM DELETE físico** — é anotação corrigível, não histórico
+  financeiro (mesma classe de compras/metas); remover reabre o atraso.
+- Autorização derivada do pai: lê quem lê o contrato, escreve quem escreve
+  nele.
+- Fora de escopo: motivos categorizados (texto livre por ora) e sugestão
+  automática de exceção por padrão histórico.
+
 ### Fuso horário — "hoje" é do usuário, não do servidor
 
 Toda lógica sensível a "hoje" (status de despesas/receitas fixas, filtro
