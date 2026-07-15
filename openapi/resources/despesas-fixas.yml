@@ -223,7 +223,155 @@ paths:
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
 
+  despesas-fixas-id-excecoes:
+    get:
+      tags: [Despesas Fixas]
+      summary: Lista exceções de uma despesa fixa
+      description: >
+        Exceção = desvio pontual de uma competência do contrato vigente, sem
+        versionar (versionamento é para mudança permanente). Caso principal:
+        justificar uma competência que não terá lançamento (isenção,
+        carência) — ela vira status `justificado`. Caso secundário: anotar
+        desvio de valor de uma ocorrência paga (auditoria; não altera o
+        status). Visível para quem lê o contrato.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Lista de exceções
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/DespesaFixaExcecao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+    post:
+      tags: [Despesas Fixas]
+      summary: Registra uma exceção em uma competência
+      description: >
+        Requer permissão de escrita no contrato (admin da casa ou dono). A
+        competência precisa estar na vigência (mês-âncora para anuais). Uma
+        exceção por competência (409 em duplicata). `valor_esperado_original`
+        é snapshot do valor do contrato no momento, preenchido pelo servidor.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/DespesaFixaExcecaoInput"
+      responses:
+        "201":
+          description: Exceção registrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/DespesaFixaExcecao"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: Já existe uma exceção para essa competência
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  despesas-fixas-id-excecoes-excecaoId:
+    delete:
+      tags: [Despesas Fixas]
+      summary: Remove uma exceção
+      description: >
+        Exceção é anotação corrigível, não histórico financeiro — por isso tem
+        DELETE físico (diferente dos contratos). Remover a exceção de uma
+        competência sem lançamento reabre o atraso no status.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+        - name: excecaoId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Id da exceção.
+      responses:
+        "204":
+          description: Exceção removida
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
 schemas:
+  DespesaFixaExcecaoInput:
+    type: object
+    required: [competencia_referencia]
+    properties:
+      competencia_referencia:
+        type: string
+        pattern: "^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)-\\d{2}$"
+        description: Competência do contrato excepcionada (MMM-AA em português, dentro da vigência).
+        example: ABR-26
+      valor_ocorrido:
+        type: number
+        format: float
+        nullable: true
+        description: >
+          Valor real da ocorrência, quando houve pagamento fora do padrão.
+          Nulo no caso de isenção/carência (não haverá lançamento).
+        example: null
+      motivo:
+        type: string
+        nullable: true
+        maxLength: 255
+        description: Texto livre explicando a exceção.
+        example: carência negociada com o locador
+
+  DespesaFixaExcecao:
+    allOf:
+      - $ref: "#/schemas/DespesaFixaExcecaoInput"
+      - type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          despesa_fixa_id:
+            type: integer
+            readOnly: true
+            example: 1
+          valor_esperado_original:
+            type: number
+            format: float
+            nullable: true
+            readOnly: true
+            description: Snapshot do valor_referencia do contrato no momento do registro; preenchido pelo servidor.
+            example: 1500
+          lancado_por_id:
+            type: integer
+            nullable: true
+            readOnly: true
+            example: 7
+          created_at:
+            type: string
+            format: date-time
+
   DespesaFixaInput:
     type: object
     required: [categoria_id, descricao, tipo_valor, valor_referencia, periodicidade, dia_esperado, vigente_desde]
@@ -365,9 +513,12 @@ schemas:
         example: "2026-07-05"
       status:
         type: string
-        enum: [pago, em_dia, vencendo_hoje, em_atraso]
+        enum: [pago, em_dia, vencendo_hoje, em_atraso, justificado]
         description: >
           pago = existe compra vinculada à competência; em_dia = ainda antes
           da data esperada; vencendo_hoje = entre a data esperada e a folga;
-          em_atraso = passou da folga sem pagamento.
+          em_atraso = passou da folga sem pagamento; justificado = sem
+          pagamento, mas com exceção registrada (isenção/carência) — sai da
+          lista "em aberto" e aparece na visão por competência. Se há
+          pagamento, ele vence: a exceção vira só anotação e o status é pago.
         example: em_atraso

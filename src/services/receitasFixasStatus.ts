@@ -2,9 +2,11 @@ import pool from '../db';
 import { adicionarMesesCompetencia, competenciaParaData, dataParaCompetencia, mesesEntre } from '../utils/competencia';
 import { hojeNoFuso } from '../utils/fuso';
 
-// Diferente do lado das despesas (4 estados), receitas fixas usam 3:
-// recebido | aguardando (ainda dentro do esperado + folga) | atrasado.
-export type StatusReceitaFixa = 'recebido' | 'aguardando' | 'atrasado';
+// Diferente do lado das despesas (que tem 4 estados de linha do tempo),
+// receitas fixas usam 3: recebido | aguardando (dentro do esperado + folga) |
+// atrasado. 'justificado' = competência sem lançamento mas com exceção
+// registrada — resolvida com explicação, não recebida.
+export type StatusReceitaFixa = 'recebido' | 'aguardando' | 'atrasado' | 'justificado';
 
 export interface ItemStatusReceitaFixa {
   receita_fixa_id: number;
@@ -27,6 +29,7 @@ const ORDEM_STATUS: Record<StatusReceitaFixa, number> = {
   atrasado: 0,
   aguardando: 1,
   recebido: 2,
+  justificado: 3,
 };
 
 function adicionarDias(dataISO: string, dias: number): string {
@@ -79,6 +82,12 @@ export async function calcularStatusReceitasFixas(
   );
   const recebidasSet = new Set(recebidas.map((r) => `${r.receita_fixa_id}|${r.competencia_referencia}`));
 
+  const { rows: excecoes } = await pool.query(
+    'SELECT receita_fixa_id, competencia_referencia FROM receita_fixa_excecoes WHERE receita_fixa_id = ANY($1)',
+    [receitasFixas.map((r) => r.id)]
+  );
+  const excecoesSet = new Set(excecoes.map((e) => `${e.receita_fixa_id}|${e.competencia_referencia}`));
+
   const itens: ItemStatusReceitaFixa[] = [];
 
   for (const receitaFixa of receitasFixas) {
@@ -92,11 +101,14 @@ export async function calcularStatusReceitasFixas(
       if (opcoes.competencia !== undefined && competencia !== opcoes.competencia) continue;
 
       const recebida = recebidasSet.has(`${receitaFixa.id}|${competencia}`);
-      if (recebida && opcoes.competencia === undefined) continue; // sem filtro: só em aberto
+      const justificada = !recebida && excecoesSet.has(`${receitaFixa.id}|${competencia}`);
+      // sem filtro: só em aberto — recebido e justificado estão resolvidos
+      if ((recebida || justificada) && opcoes.competencia === undefined) continue;
 
       const dataEsperada = calcularDataEsperada(competencia, receitaFixa.dia_esperado_recebimento);
       let status: StatusReceitaFixa;
       if (recebida) status = 'recebido';
+      else if (justificada) status = 'justificado';
       else if (hoje <= adicionarDias(dataEsperada, folgaDias)) status = 'aguardando';
       else status = 'atrasado';
 

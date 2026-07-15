@@ -2,7 +2,9 @@ import pool from '../db';
 import { adicionarMesesCompetencia, competenciaParaData, dataParaCompetencia, mesesEntre } from '../utils/competencia';
 import { hojeNoFuso } from '../utils/fuso';
 
-export type StatusDespesaFixa = 'pago' | 'em_dia' | 'vencendo_hoje' | 'em_atraso';
+// 'justificado' = competência sem lançamento mas com exceção registrada
+// (isenção, carência) — resolvida com explicação, não paga.
+export type StatusDespesaFixa = 'pago' | 'em_dia' | 'vencendo_hoje' | 'em_atraso' | 'justificado';
 
 export interface ItemStatusDespesaFixa {
   despesa_fixa_id: number;
@@ -26,6 +28,7 @@ const ORDEM_STATUS: Record<StatusDespesaFixa, number> = {
   vencendo_hoje: 1,
   em_dia: 2,
   pago: 3,
+  justificado: 4,
 };
 
 function adicionarDias(dataISO: string, dias: number): string {
@@ -78,6 +81,12 @@ export async function calcularStatusDespesasFixas(
   );
   const pagasSet = new Set(pagas.map((p) => `${p.despesa_fixa_id}|${p.competencia_referencia}`));
 
+  const { rows: excecoes } = await pool.query(
+    'SELECT despesa_fixa_id, competencia_referencia FROM despesa_fixa_excecoes WHERE despesa_fixa_id = ANY($1)',
+    [despesas.map((d) => d.id)]
+  );
+  const excecoesSet = new Set(excecoes.map((e) => `${e.despesa_fixa_id}|${e.competencia_referencia}`));
+
   const itens: ItemStatusDespesaFixa[] = [];
 
   for (const despesa of despesas) {
@@ -91,11 +100,14 @@ export async function calcularStatusDespesasFixas(
       if (opcoes.competencia !== undefined && competencia !== opcoes.competencia) continue;
 
       const paga = pagasSet.has(`${despesa.id}|${competencia}`);
-      if (paga && opcoes.competencia === undefined) continue; // sem filtro: só em aberto
+      const justificada = !paga && excecoesSet.has(`${despesa.id}|${competencia}`);
+      // sem filtro: só em aberto — pago e justificado estão resolvidos
+      if ((paga || justificada) && opcoes.competencia === undefined) continue;
 
       const dataEsperada = calcularDataEsperada(competencia, despesa.dia_esperado);
       let status: StatusDespesaFixa;
       if (paga) status = 'pago';
+      else if (justificada) status = 'justificado';
       else if (hoje < dataEsperada) status = 'em_dia';
       else if (hoje <= adicionarDias(dataEsperada, folgaDias)) status = 'vencendo_hoje';
       else status = 'em_atraso';

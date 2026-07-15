@@ -5,6 +5,7 @@ import { ehCompetenciaValida } from '../utils/competencia';
 import { hojeNoFuso } from '../utils/fuso';
 import { ehNumeroValido } from '../utils/numero';
 import { calcularStatusReceitasFixas } from '../services/receitasFixasStatus';
+import createExcecoesRouter from './excecoesFixasRouter';
 
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
@@ -233,6 +234,14 @@ router.put('/:id', autenticar, async (req, res, next) => {
     next(err);
   }
 });
+
+router.use('/:id/excecoes', createExcecoesRouter({
+  tabelaPai: 'receitas_fixas',
+  tabelaExcecao: 'receita_fixa_excecoes',
+  fkPai: 'receita_fixa_id',
+  campoValorEsperadoPai: 'valor_esperado',
+  nomePai: 'Receita fixa',
+}));
 
 router.patch('/:id/encerrar', autenticar, async (req, res, next) => {
   try {

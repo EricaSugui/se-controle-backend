@@ -224,7 +224,155 @@ paths:
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
 
+  receitas-fixas-id-excecoes:
+    get:
+      tags: [Receitas Fixas]
+      summary: Lista exceções de uma receita fixa
+      description: >
+        Exceção = desvio pontual de uma competência do contrato vigente, sem
+        versionar. Caso principal: justificar uma competência que não terá
+        recebimento (ex. cliente cancelou o mês, bônus não pago) — ela vira
+        status `justificado`. Caso secundário: anotar desvio de valor de uma
+        ocorrência recebida (auditoria). Visível para quem lê o contrato.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Lista de exceções
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/ReceitaFixaExcecao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+    post:
+      tags: [Receitas Fixas]
+      summary: Registra uma exceção em uma competência
+      description: >
+        Requer permissão de escrita no contrato (admin da casa ou dono). A
+        competência precisa estar na vigência (mês-âncora para anuais). Uma
+        exceção por competência (409 em duplicata). `valor_esperado_original`
+        é snapshot do valor_esperado do contrato no momento (pode ser nulo em
+        contratos de confiabilidade variável), preenchido pelo servidor.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/ReceitaFixaExcecaoInput"
+      responses:
+        "201":
+          description: Exceção registrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ReceitaFixaExcecao"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: Já existe uma exceção para essa competência
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  receitas-fixas-id-excecoes-excecaoId:
+    delete:
+      tags: [Receitas Fixas]
+      summary: Remove uma exceção
+      description: >
+        Exceção é anotação corrigível, não histórico financeiro — por isso tem
+        DELETE físico (diferente dos contratos). Remover a exceção de uma
+        competência sem recebimento reabre o atraso no status.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+        - name: excecaoId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Id da exceção.
+      responses:
+        "204":
+          description: Exceção removida
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
 schemas:
+  ReceitaFixaExcecaoInput:
+    type: object
+    required: [competencia_referencia]
+    properties:
+      competencia_referencia:
+        type: string
+        pattern: "^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)-\\d{2}$"
+        description: Competência do contrato excepcionada (MMM-AA em português, dentro da vigência).
+        example: JUN-26
+      valor_ocorrido:
+        type: number
+        format: float
+        nullable: true
+        description: >
+          Valor real da ocorrência, quando houve recebimento fora do padrão.
+          Nulo quando a competência não terá recebimento.
+        example: null
+      motivo:
+        type: string
+        nullable: true
+        maxLength: 255
+        description: Texto livre explicando a exceção.
+        example: cliente cancelou o mês
+
+  ReceitaFixaExcecao:
+    allOf:
+      - $ref: "#/schemas/ReceitaFixaExcecaoInput"
+      - type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          receita_fixa_id:
+            type: integer
+            readOnly: true
+            example: 1
+          valor_esperado_original:
+            type: number
+            format: float
+            nullable: true
+            readOnly: true
+            description: Snapshot do valor_esperado do contrato no momento do registro (pode ser nulo); preenchido pelo servidor.
+            example: 5000
+          lancado_por_id:
+            type: integer
+            nullable: true
+            readOnly: true
+            example: 7
+          created_at:
+            type: string
+            format: date-time
+
   ReceitaFixaInput:
     type: object
     required: [origem_id, descricao, tipo_confiabilidade, periodicidade, dia_esperado_recebimento, vigente_desde]
@@ -374,9 +522,12 @@ schemas:
         example: "2026-07-05"
       status:
         type: string
-        enum: [recebido, aguardando, atrasado]
+        enum: [recebido, aguardando, atrasado, justificado]
         description: >
           recebido = existe receita vinculada à competência; aguardando =
           ainda dentro da data esperada + folga; atrasado = passou da folga
-          sem recebimento.
+          sem recebimento; justificado = sem recebimento, mas com exceção
+          registrada — sai da lista "em aberto" e aparece na visão por
+          competência. Se há recebimento, ele vence: a exceção vira só
+          anotação e o status é recebido.
         example: atrasado
