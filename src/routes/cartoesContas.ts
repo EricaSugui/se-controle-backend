@@ -6,6 +6,46 @@ import { ehNumeroValido } from '../utils/numero';
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
 
+const TIPOS = ['credito', 'debito', 'aplicacao'];
+
+function ehDataValida(valor: unknown): valor is string {
+  return typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(valor) && !isNaN(Date.parse(valor));
+}
+
+const presente = (valor: unknown) => valor !== undefined && valor !== null;
+
+// Regras entre colunas/linhas por tipo — na camada de app (CHECKs de SQL não
+// cruzam linhas): crédito tem fatura/limite/conta que paga; conta
+// (débito/aplicação) tem saldo_base e não tem nada de fatura.
+async function validarCamposCartaoConta(body: any): Promise<string | null> {
+  const { tipo, titular_id, limite, dia_fechamento, dia_vencimento, saldo_base, saldo_base_data, conta_debito_id } = body;
+
+  if (!TIPOS.includes(tipo)) return "tipo deve ser 'credito', 'debito' ou 'aplicacao'";
+
+  if (tipo === 'credito') {
+    if (presente(saldo_base) || presente(saldo_base_data)) {
+      return 'saldo_base/saldo_base_data só se aplicam a contas (débito/aplicação)';
+    }
+    if (presente(limite) && !ehNumeroValido(limite)) return 'limite deve ser um número';
+    if (presente(conta_debito_id)) {
+      const { rows } = await pool.query('SELECT tipo, titular_id FROM cartoes_contas WHERE id = $1', [conta_debito_id]);
+      if (rows.length === 0) return 'conta_debito_id inválido';
+      if (rows[0].tipo === 'credito') return 'conta_debito_id deve apontar para uma conta (débito/aplicação), não para outro cartão de crédito';
+      if (rows[0].titular_id !== Number(titular_id)) return 'a conta que paga a fatura deve pertencer ao mesmo titular do cartão';
+    }
+  } else {
+    for (const [campo, valor] of [['limite', limite], ['dia_fechamento', dia_fechamento], ['dia_vencimento', dia_vencimento], ['conta_debito_id', conta_debito_id]] as const) {
+      if (presente(valor)) return `${campo} só se aplica a cartões de crédito`;
+    }
+    if (presente(saldo_base) !== presente(saldo_base_data)) {
+      return 'saldo_base e saldo_base_data devem ser informados juntos';
+    }
+    if (presente(saldo_base) && !ehNumeroValido(saldo_base)) return 'saldo_base deve ser um número';
+    if (presente(saldo_base_data) && !ehDataValida(saldo_base_data)) return 'saldo_base_data deve estar no formato AAAA-MM-DD';
+  }
+  return null;
+}
+
 router.get('/', autenticar, async (req, res, next) => {
   try {
     const { ativo } = req.query;
@@ -38,15 +78,17 @@ router.get('/', autenticar, async (req, res, next) => {
 router.post('/', autenticar, async (req, res, next) => {
   try {
     const pessoaId = (req as any).usuario.id;
-    const { nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento } = req.body;
+    const { nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento, saldo_base, saldo_base_data, conta_debito_id } = req.body;
 
     if (!nome || !tipo) return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
-    if (tipo !== 'credito' && tipo !== 'debito') return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
-    if (limite !== undefined && limite !== null && !ehNumeroValido(limite)) {
-      return res.status(400).json({ erro: 'limite deve ser um número' });
+    if (titular_id === undefined || titular_id === null) {
+      return res.status(400).json({ erro: 'titular_id é obrigatório' });
     }
 
-    if (titular_id !== undefined && titular_id !== null && Number(titular_id) !== pessoaId) {
+    const erroCampos = await validarCamposCartaoConta(req.body);
+    if (erroCampos) return res.status(400).json({ erro: erroCampos });
+
+    if (Number(titular_id) !== pessoaId) {
       const { rows: permRows } = await pool.query(
         `SELECT EXISTS (
            SELECT 1
@@ -62,9 +104,9 @@ router.post('/', autenticar, async (req, res, next) => {
     }
 
     const { rows } = await pool.query(
-      `INSERT INTO cartoes_contas (nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [nome, tipo, orNull(titular_id), orNull(limite), orNull(dia_fechamento), orNull(dia_vencimento)]
+      `INSERT INTO cartoes_contas (nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento, saldo_base, saldo_base_data, conta_debito_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [nome, tipo, titular_id, orNull(limite), orNull(dia_fechamento), orNull(dia_vencimento), orNull(saldo_base), orNull(saldo_base_data), orNull(conta_debito_id)]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -90,19 +132,37 @@ router.put('/:id', autenticar, async (req, res, next) => {
     if (autorizacao === 'nao_encontrado') return res.status(404).json({ erro: 'Registro não encontrado' });
     if (autorizacao === 'sem_permissao') return res.status(403).json({ erro: 'Você não tem permissão para editar este cartão/conta' });
 
-    const { nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento } = req.body;
+    const { nome, tipo, titular_id, limite, dia_fechamento, dia_vencimento, saldo_base, saldo_base_data, conta_debito_id } = req.body;
 
     if (!nome || !tipo) return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
-    if (tipo !== 'credito' && tipo !== 'debito') return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
-    if (limite !== undefined && limite !== null && !ehNumeroValido(limite)) {
-      return res.status(400).json({ erro: 'limite deve ser um número' });
+    if (titular_id === undefined || titular_id === null) {
+      return res.status(400).json({ erro: 'titular_id é obrigatório' });
+    }
+
+    const erroCampos = await validarCamposCartaoConta(req.body);
+    if (erroCampos) return res.status(400).json({ erro: erroCampos });
+
+    // não deixa uma conta virar crédito enquanto houver cartões cuja fatura
+    // desagua nela ou receitas (fixas) que a usam como destino
+    if (tipo === 'credito') {
+      const { rows: dependentes } = await pool.query(
+        `SELECT 1 FROM cartoes_contas WHERE conta_debito_id = $1
+         UNION ALL SELECT 1 FROM receitas_fixas WHERE conta_destino_id = $1
+         UNION ALL SELECT 1 FROM receitas WHERE conta_destino_id = $1
+         LIMIT 1`,
+        [req.params.id]
+      );
+      if (dependentes.length > 0) {
+        return res.status(400).json({ erro: 'esta conta é usada como destino de receitas ou paga faturas de cartões — desvincule antes de mudar o tipo' });
+      }
     }
 
     const { rows } = await pool.query(
       `UPDATE cartoes_contas
-       SET nome = $1, tipo = $2, titular_id = $3, limite = $4, dia_fechamento = $5, dia_vencimento = $6
-       WHERE id = $7 RETURNING *`,
-      [nome, tipo, orNull(titular_id), orNull(limite), orNull(dia_fechamento), orNull(dia_vencimento), req.params.id]
+       SET nome = $1, tipo = $2, titular_id = $3, limite = $4, dia_fechamento = $5, dia_vencimento = $6,
+           saldo_base = $7, saldo_base_data = $8, conta_debito_id = $9
+       WHERE id = $10 RETURNING *`,
+      [nome, tipo, titular_id, orNull(limite), orNull(dia_fechamento), orNull(dia_vencimento), orNull(saldo_base), orNull(saldo_base_data), orNull(conta_debito_id), req.params.id]
     );
 
     res.json(rows[0]);

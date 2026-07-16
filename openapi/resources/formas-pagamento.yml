@@ -32,7 +32,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "../components/common-schemas.yml#/schemas/NomeInput"
+              $ref: "#/schemas/FormaPagamentoInput"
       responses:
         "201":
           description: Forma de pagamento criada
@@ -67,7 +67,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "../components/common-schemas.yml#/schemas/NomeInput"
+              $ref: "#/schemas/FormaPagamentoInput"
       responses:
         "200":
           description: Forma de pagamento atualizada
@@ -137,18 +137,34 @@ paths:
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
 
 schemas:
-  FormaPagamento:
+  FormaPagamentoInput:
     type: object
+    required: [nome]
     properties:
-      id:
-        type: integer
-        example: 1
       nome:
         type: string
         example: Pix
-      ativo:
+      exige_conta:
         type: boolean
+        default: false
+        description: >
+          Quando true, compras com esta forma de pagamento exigem
+          cartao_conta_id (400 sem ele, após a herança do contrato vinculado).
+          Ex.: PIX sai de uma conta real; dinheiro físico não exige. No PUT,
+          omitido mantém o valor atual.
         example: true
-      created_at:
-        type: string
-        format: date-time
+
+  FormaPagamento:
+    allOf:
+      - $ref: "#/schemas/FormaPagamentoInput"
+      - type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          ativo:
+            type: boolean
+            example: true
+          created_at:
+            type: string
+            format: date-time

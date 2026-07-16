@@ -45,6 +45,14 @@ async function categoriaExiste(categoriaId: unknown): Promise<boolean> {
   return rows.length > 0;
 }
 
+// meio de pagamento default do contrato (qualquer tipo: cartão de crédito,
+// conta débito ou aplicação) — herdado pela compra vinculada quando omitido
+async function cartaoContaExiste(cartaoContaId: unknown): Promise<boolean> {
+  if (cartaoContaId === undefined || cartaoContaId === null) return true;
+  const { rows } = await pool.query('SELECT 1 FROM cartoes_contas WHERE id = $1', [cartaoContaId]);
+  return rows.length > 0;
+}
+
 async function autorizarLeitura(pessoaId: number, casaId: number | null, donoPessoaId: number | null): Promise<boolean> {
   if (donoPessoaId !== null) return donoPessoaId === pessoaId;
   const { rows } = await pool.query('SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2', [casaId, pessoaId]);
@@ -152,6 +160,7 @@ router.post('/', autenticar, async (req, res, next) => {
     const {
       casa_id, pessoa_id, categoria_id, descricao, tipo_valor, valor_referencia,
       periodicidade, dia_esperado, vigente_desde, vigente_ate, despesa_fixa_anterior_id,
+      cartao_conta_padrao_id,
     } = req.body;
 
     const erroXor = validarPessoaOuCasa(pessoa_id, casa_id);
@@ -162,6 +171,10 @@ router.post('/', autenticar, async (req, res, next) => {
 
     if (!(await categoriaExiste(categoria_id))) {
       return res.status(400).json({ erro: 'categoria_id inválido' });
+    }
+
+    if (!(await cartaoContaExiste(cartao_conta_padrao_id))) {
+      return res.status(400).json({ erro: 'cartao_conta_padrao_id inválido' });
     }
 
     if (!(await autorizarEscrita(pessoaId, casa_id ?? null, pessoa_id ?? null))) {
@@ -184,11 +197,11 @@ router.post('/', autenticar, async (req, res, next) => {
     const { rows } = await pool.query(
       `INSERT INTO despesas_fixas
          (casa_id, pessoa_id, categoria_id, descricao, tipo_valor, valor_referencia,
-          periodicidade, dia_esperado, vigente_desde, vigente_ate, despesa_fixa_anterior_id, lancado_por_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+          periodicidade, dia_esperado, vigente_desde, vigente_ate, despesa_fixa_anterior_id, lancado_por_id, cartao_conta_padrao_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [
         orNull(casa_id), orNull(pessoa_id), categoria_id, descricao, tipo_valor, valor_referencia,
-        periodicidade, dia_esperado, vigente_desde, orNull(vigente_ate), orNull(despesa_fixa_anterior_id), pessoaId,
+        periodicidade, dia_esperado, vigente_desde, orNull(vigente_ate), orNull(despesa_fixa_anterior_id), pessoaId, orNull(cartao_conta_padrao_id),
       ]
     );
     res.status(201).json(rows[0]);
@@ -210,7 +223,7 @@ router.put('/:id', autenticar, async (req, res, next) => {
 
     // casa_id/pessoa_id, despesa_fixa_anterior_id e lancado_por_id não são
     // alteráveis via PUT — escopo e sucessão são fixos desde a criação
-    const { categoria_id, descricao, tipo_valor, valor_referencia, periodicidade, dia_esperado, vigente_desde, vigente_ate } = req.body;
+    const { categoria_id, descricao, tipo_valor, valor_referencia, periodicidade, dia_esperado, vigente_desde, vigente_ate, cartao_conta_padrao_id } = req.body;
 
     const erroCampos = validarCampos(req.body);
     if (erroCampos) return res.status(400).json({ erro: erroCampos });
@@ -219,12 +232,17 @@ router.put('/:id', autenticar, async (req, res, next) => {
       return res.status(400).json({ erro: 'categoria_id inválido' });
     }
 
+    if (!(await cartaoContaExiste(cartao_conta_padrao_id))) {
+      return res.status(400).json({ erro: 'cartao_conta_padrao_id inválido' });
+    }
+
     const { rows } = await pool.query(
       `UPDATE despesas_fixas
        SET categoria_id = $1, descricao = $2, tipo_valor = $3, valor_referencia = $4,
-           periodicidade = $5, dia_esperado = $6, vigente_desde = $7, vigente_ate = $8
-       WHERE id = $9 RETURNING *`,
-      [categoria_id, descricao, tipo_valor, valor_referencia, periodicidade, dia_esperado, vigente_desde, orNull(vigente_ate), req.params.id]
+           periodicidade = $5, dia_esperado = $6, vigente_desde = $7, vigente_ate = $8,
+           cartao_conta_padrao_id = $9
+       WHERE id = $10 RETURNING *`,
+      [categoria_id, descricao, tipo_valor, valor_referencia, periodicidade, dia_esperado, vigente_desde, orNull(vigente_ate), orNull(cartao_conta_padrao_id), req.params.id]
     );
     res.json(rows[0]);
   } catch (err) {

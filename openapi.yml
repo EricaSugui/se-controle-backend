@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: SeControle - Controle Financeiro Familiar API
   description: API para gerenciar transações, receitas, metas e cadastros de apoio do controle financeiro familiar.
-  version: "3.4.0"
+  version: "3.5.0"
 
 servers:
   - url: http://localhost:3000
@@ -25,6 +25,7 @@ tags:
   - name: Metas
   - name: Despesas Fixas
   - name: Receitas Fixas
+  - name: Saldo Projetado
   - name: Percentual de Custeio
   - name: Convites
   - name: Dashboard
@@ -141,6 +142,8 @@ paths:
     $ref: './openapi/resources/receitas-fixas.yml#/paths/receitas-fixas-id-excecoes'
   /receitas-fixas/{id}/excecoes/{excecaoId}:
     $ref: './openapi/resources/receitas-fixas.yml#/paths/receitas-fixas-id-excecoes-excecaoId'
+  /saldo-projetado:
+    $ref: './openapi/resources/saldo-projetado.yml#/paths/saldo-projetado'
   /convites:
     $ref: './openapi/resources/convites.yml#/paths/convites'
   /convites/token/{token}:
@@ -220,6 +223,8 @@ components:
       $ref: './openapi/resources/casas.yml#/schemas/PercentualCusteio'
     Categoria:
       $ref: './openapi/resources/categorias.yml#/schemas/Categoria'
+    FormaPagamentoInput:
+      $ref: './openapi/resources/formas-pagamento.yml#/schemas/FormaPagamentoInput'
     FormaPagamento:
       $ref: './openapi/resources/formas-pagamento.yml#/schemas/FormaPagamento'
     OrigemReceita:
@@ -274,6 +279,14 @@ components:
       $ref: './openapi/resources/receitas-fixas.yml#/schemas/ReceitaFixaExcecaoInput'
     ReceitaFixaExcecao:
       $ref: './openapi/resources/receitas-fixas.yml#/schemas/ReceitaFixaExcecao'
+    SaldoProjetado:
+      $ref: './openapi/resources/saldo-projetado.yml#/schemas/SaldoProjetado'
+    ContaProjetada:
+      $ref: './openapi/resources/saldo-projetado.yml#/schemas/ContaProjetada'
+    EventoProjecao:
+      $ref: './openapi/resources/saldo-projetado.yml#/schemas/EventoProjecao'
+    AvisoProjecao:
+      $ref: './openapi/resources/saldo-projetado.yml#/schemas/AvisoProjecao'
     ConviteInput:
       $ref: './openapi/resources/convites.yml#/schemas/ConviteInput'
     Convite:

@@ -1,15 +1,25 @@
 # Backlog — se-controle-backend
 
-> Atualizado em 2026-07-15, após o ciclo de recorrência (PRs #22–#26).
-> Fonte da verdade dos pendentes; as decisões já tomadas estão em
-> `decisoes-superficie-api.md`.
+> Atualizado em 2026-07-16, após a projeção de saldo (branch
+> feature/saldo-projetado). Fonte da verdade dos pendentes; as decisões já
+> tomadas estão em `decisoes-superficie-api.md`.
 
-## Próxima feature grande
+## Entregue recentemente
 
-- **Projeção de saldo** — tela/endpoint combinando os dois lados do fluxo
-  recorrente: esperado a pagar (`GET /despesas-fixas/status`) + esperado a
-  receber (`GET /receitas-fixas/status`), ambos já com valores esperados e
-  "hoje" no fuso do usuário. Toda a matéria-prima está pronta.
+- ✅ **Projeção de saldo** (`GET /saldo-projetado`) — evolução de
+  cartoes_contas (tipo aplicacao, saldo_base, conta_debito_id), conta destino
+  nos contratos com herança, PIX exige conta, compartilhamento de saldo
+  opt-in. Pendente do lado do app: tela + handoff
+  `handoff-frontend-saldo-projetado.md`.
+
+## Próximos candidatos
+
+- **Projeção no tempo (gráfico)**: o endpoint já devolve a timeline de
+  eventos por conta — a UI decide granularidade; se precisar de série diária
+  agregada pelo backend, é evolução pequena do service.
+- **Despesa fixa esperada em cartão de crédito**: hoje projetada na
+  data_esperada (simplificação); refinamento futuro é projetá-la no
+  vencimento da fatura em que cairia.
 
 ## Backlog de features (sem urgência, já com contexto)
 
