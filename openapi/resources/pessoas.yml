@@ -131,6 +131,8 @@ schemas:
         type: string
         format: email
         nullable: true
+        description: >
+          No PUT, campo OMITIDO mantém o email atual; null explícito limpa.
         example: erica@email.com
       fuso_horario:
         type: string
