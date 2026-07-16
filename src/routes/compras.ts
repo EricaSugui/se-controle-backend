@@ -111,16 +111,16 @@ async function validarVinculoDespesaFixa(
   casaId: unknown,
   pessoaCompraId: unknown,
   competenciaCompra: string
-): Promise<{ despesaFixaId: number | null; competenciaReferencia: string | null }> {
+): Promise<{ despesaFixaId: number | null; competenciaReferencia: string | null; cartaoContaPadrao: number | null }> {
   if (despesaFixaId === undefined || despesaFixaId === null) {
     if (competenciaReferencia !== undefined && competenciaReferencia !== null) {
       throw new ErroValidacaoCompra('competencia_referencia exige despesa_fixa_id');
     }
-    return { despesaFixaId: null, competenciaReferencia: null };
+    return { despesaFixaId: null, competenciaReferencia: null, cartaoContaPadrao: null };
   }
 
   const { rows } = await pool.query(
-    `SELECT id, casa_id, pessoa_id, periodicidade,
+    `SELECT id, casa_id, pessoa_id, periodicidade, cartao_conta_padrao_id,
             vigente_desde::text AS vigente_desde, vigente_ate::text AS vigente_ate
      FROM despesas_fixas WHERE id = $1`,
     [despesaFixaId]
@@ -151,7 +151,7 @@ async function validarVinculoDespesaFixa(
     throw new ErroValidacaoCompra('para despesa fixa anual, competencia_referencia deve usar o mês de início da vigência');
   }
 
-  return { despesaFixaId: despesa.id, competenciaReferencia: referencia };
+  return { despesaFixaId: despesa.id, competenciaReferencia: referencia, cartaoContaPadrao: despesa.cartao_conta_padrao_id };
 }
 
 const FROM_BASE = `
@@ -287,6 +287,10 @@ router.post('/', autenticar, async (req, res, next) => {
 
       const vinculo = await validarVinculoDespesaFixa(despesa_fixa_id, competencia_referencia, casa_id, pessoa_id, competencia);
 
+      // cartão/conta OMITIDO (undefined) herda o padrão do contrato vinculado;
+      // null explícito = sem cartão (pix/dinheiro deliberado, não sobrescrever)
+      const cartaoContaEfetivo = cartao_conta_id === undefined ? vinculo.cartaoContaPadrao : orNull(cartao_conta_id);
+
       // lancado_por_id é sempre o usuário autenticado, nunca o valor enviado pelo cliente
       const { rows: compraRows } = await client.query(
         `INSERT INTO compras
@@ -295,13 +299,13 @@ router.post('/', autenticar, async (req, res, next) => {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
         [
           casa_id, pessoa_id, pessoaId, categoria_id, orNull(descricao),
-          orNull(cartao_conta_id), orNull(forma_pagamento_id), data, competencia, totalParcelas,
+          cartaoContaEfetivo, orNull(forma_pagamento_id), data, competencia, totalParcelas,
           vinculo.despesaFixaId, vinculo.competenciaReferencia,
         ]
       );
       const compra = compraRows[0];
 
-      const parcelas = await criarParcelas(client, compra.id, data, orNull(cartao_conta_id), totalParcelas, valor_parcela);
+      const parcelas = await criarParcelas(client, compra.id, data, cartaoContaEfetivo, totalParcelas, valor_parcela);
 
       await client.query('COMMIT');
       res.status(201).json({ ...compra, valor_parcela, parcelas });
@@ -374,6 +378,10 @@ router.put('/:id', autenticar, async (req, res, next) => {
 
       const vinculo = await validarVinculoDespesaFixa(despesa_fixa_id, competencia_referencia, casa_id, pessoa_id, competencia);
 
+      // cartão/conta OMITIDO (undefined) herda o padrão do contrato vinculado;
+      // null explícito = sem cartão (pix/dinheiro deliberado, não sobrescrever)
+      const cartaoContaEfetivo = cartao_conta_id === undefined ? vinculo.cartaoContaPadrao : orNull(cartao_conta_id);
+
       // lancado_por_id não é alterável — permanece com quem registrou originalmente
       const { rows: compraRows } = await client.query(
         `UPDATE compras
@@ -382,7 +390,7 @@ router.put('/:id', autenticar, async (req, res, next) => {
              despesa_fixa_id = $10, competencia_referencia = $11
          WHERE id = $12 RETURNING *`,
         [
-          casa_id, pessoa_id, categoria_id, orNull(descricao), orNull(cartao_conta_id),
+          casa_id, pessoa_id, categoria_id, orNull(descricao), cartaoContaEfetivo,
           orNull(forma_pagamento_id), data, competencia, totalParcelas,
           vinculo.despesaFixaId, vinculo.competenciaReferencia, req.params.id,
         ]
@@ -390,7 +398,7 @@ router.put('/:id', autenticar, async (req, res, next) => {
       const compra = compraRows[0];
 
       await client.query('DELETE FROM parcelas WHERE compra_id = $1', [compra.id]);
-      const parcelas = await criarParcelas(client, compra.id, data, orNull(cartao_conta_id), totalParcelas, valor_parcela);
+      const parcelas = await criarParcelas(client, compra.id, data, cartaoContaEfetivo, totalParcelas, valor_parcela);
 
       await client.query('COMMIT');
       res.json({ ...compra, valor_parcela, parcelas });

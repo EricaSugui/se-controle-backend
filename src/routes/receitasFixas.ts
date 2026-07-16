@@ -48,6 +48,14 @@ async function origemExiste(origemId: unknown): Promise<boolean> {
   return rows.length > 0;
 }
 
+async function validarContaDestino(contaId: unknown): Promise<string | null> {
+  if (contaId === undefined || contaId === null) return null;
+  const { rows } = await pool.query('SELECT tipo FROM cartoes_contas WHERE id = $1', [contaId]);
+  if (rows.length === 0) return 'conta_destino_id inválido';
+  if (rows[0].tipo === 'credito') return 'conta_destino_id deve ser uma conta (débito/aplicação), não um cartão de crédito';
+  return null;
+}
+
 async function autorizarLeitura(pessoaId: number, casaId: number | null, donoPessoaId: number | null): Promise<boolean> {
   if (donoPessoaId !== null) return donoPessoaId === pessoaId;
   const { rows } = await pool.query('SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2', [casaId, pessoaId]);
@@ -155,6 +163,7 @@ router.post('/', autenticar, async (req, res, next) => {
     const {
       casa_id, pessoa_id, origem_id, descricao, tipo_confiabilidade, valor_esperado,
       periodicidade, dia_esperado_recebimento, vigente_desde, vigente_ate, receita_fixa_anterior_id,
+      conta_destino_id,
     } = req.body;
 
     const erroXor = validarPessoaOuCasa(pessoa_id, casa_id);
@@ -166,6 +175,9 @@ router.post('/', autenticar, async (req, res, next) => {
     if (!(await origemExiste(origem_id))) {
       return res.status(400).json({ erro: 'origem_id inválido' });
     }
+
+    const erroConta = await validarContaDestino(conta_destino_id);
+    if (erroConta) return res.status(400).json({ erro: erroConta });
 
     if (!(await autorizarEscrita(pessoaId, casa_id ?? null, pessoa_id ?? null))) {
       return res.status(403).json({ erro: 'Você não tem permissão para criar receita fixa neste escopo' });
@@ -187,11 +199,11 @@ router.post('/', autenticar, async (req, res, next) => {
     const { rows } = await pool.query(
       `INSERT INTO receitas_fixas
          (casa_id, pessoa_id, origem_id, descricao, tipo_confiabilidade, valor_esperado,
-          periodicidade, dia_esperado_recebimento, vigente_desde, vigente_ate, receita_fixa_anterior_id, lancado_por_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+          periodicidade, dia_esperado_recebimento, vigente_desde, vigente_ate, receita_fixa_anterior_id, lancado_por_id, conta_destino_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [
         orNull(casa_id), orNull(pessoa_id), origem_id, descricao, tipo_confiabilidade, orNull(valor_esperado),
-        periodicidade, dia_esperado_recebimento, vigente_desde, orNull(vigente_ate), orNull(receita_fixa_anterior_id), pessoaId,
+        periodicidade, dia_esperado_recebimento, vigente_desde, orNull(vigente_ate), orNull(receita_fixa_anterior_id), pessoaId, orNull(conta_destino_id),
       ]
     );
     res.status(201).json(rows[0]);
@@ -213,7 +225,7 @@ router.put('/:id', autenticar, async (req, res, next) => {
 
     // casa_id/pessoa_id, receita_fixa_anterior_id e lancado_por_id não são
     // alteráveis via PUT — escopo e sucessão são fixos desde a criação
-    const { origem_id, descricao, tipo_confiabilidade, valor_esperado, periodicidade, dia_esperado_recebimento, vigente_desde, vigente_ate } = req.body;
+    const { origem_id, descricao, tipo_confiabilidade, valor_esperado, periodicidade, dia_esperado_recebimento, vigente_desde, vigente_ate, conta_destino_id } = req.body;
 
     const erroCampos = validarCampos(req.body);
     if (erroCampos) return res.status(400).json({ erro: erroCampos });
@@ -222,12 +234,16 @@ router.put('/:id', autenticar, async (req, res, next) => {
       return res.status(400).json({ erro: 'origem_id inválido' });
     }
 
+    const erroConta = await validarContaDestino(conta_destino_id);
+    if (erroConta) return res.status(400).json({ erro: erroConta });
+
     const { rows } = await pool.query(
       `UPDATE receitas_fixas
        SET origem_id = $1, descricao = $2, tipo_confiabilidade = $3, valor_esperado = $4,
-           periodicidade = $5, dia_esperado_recebimento = $6, vigente_desde = $7, vigente_ate = $8
-       WHERE id = $9 RETURNING *`,
-      [origem_id, descricao, tipo_confiabilidade, orNull(valor_esperado), periodicidade, dia_esperado_recebimento, vigente_desde, orNull(vigente_ate), req.params.id]
+           periodicidade = $5, dia_esperado_recebimento = $6, vigente_desde = $7, vigente_ate = $8,
+           conta_destino_id = $9
+       WHERE id = $10 RETURNING *`,
+      [origem_id, descricao, tipo_confiabilidade, orNull(valor_esperado), periodicidade, dia_esperado_recebimento, vigente_desde, orNull(vigente_ate), orNull(conta_destino_id), req.params.id]
     );
     res.json(rows[0]);
   } catch (err) {

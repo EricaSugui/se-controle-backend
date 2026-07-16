@@ -142,15 +142,18 @@ router.put('/:id', autenticar, async (req, res, next) => {
     const erroCampos = await validarCamposCartaoConta(req.body);
     if (erroCampos) return res.status(400).json({ erro: erroCampos });
 
-    // não deixa uma conta virar crédito (ou trocar de tipo) enquanto houver
-    // cartões cuja fatura desagua nela
+    // não deixa uma conta virar crédito enquanto houver cartões cuja fatura
+    // desagua nela ou receitas (fixas) que a usam como destino
     if (tipo === 'credito') {
       const { rows: dependentes } = await pool.query(
-        'SELECT 1 FROM cartoes_contas WHERE conta_debito_id = $1 LIMIT 1',
+        `SELECT 1 FROM cartoes_contas WHERE conta_debito_id = $1
+         UNION ALL SELECT 1 FROM receitas_fixas WHERE conta_destino_id = $1
+         UNION ALL SELECT 1 FROM receitas WHERE conta_destino_id = $1
+         LIMIT 1`,
         [req.params.id]
       );
       if (dependentes.length > 0) {
-        return res.status(400).json({ erro: 'esta conta paga faturas de cartões de crédito — desvincule-os antes de mudar o tipo' });
+        return res.status(400).json({ erro: 'esta conta é usada como destino de receitas ou paga faturas de cartões — desvincule antes de mudar o tipo' });
       }
     }
 
