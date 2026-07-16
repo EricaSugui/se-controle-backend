@@ -1,0 +1,155 @@
+paths:
+  saldo-projetado:
+    get:
+      tags: [Saldo Projetado]
+      summary: Projeção de saldo por conta
+      description: >
+        Para cada conta no escopo (débito/aplicação, ativa, do usuário — ou de
+        terceiros compartilhada com compartilha_saldo em casas do usuário),
+        projeta o saldo até a data `ate`: saldo_base + eventos no intervalo
+        (saldo_base_data, ate]. Eventos: receitas lançadas com conta destino;
+        receitas fixas esperadas (não recebidas nem justificadas) do contrato
+        com conta destino; parcelas de débito direto da conta; faturas a
+        vencer de cartões cuja fatura desagua na conta (conta_debito_id);
+        despesas fixas esperadas cujo meio padrão resolve para a conta.
+        Dinheiro físico fica fora por construção (sem conta). Conta sem
+        saldo_base entra com flag sem_saldo_base e projeta só os fluxos.
+        "Hoje" e o default de `ate` usam o fuso horário do usuário.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: "Horizonte da projeção. Default: último dia do mês seguinte."
+          example: "2026-08-31"
+      responses:
+        "200":
+          description: Projeção por conta, com timeline de eventos e avisos de configuração
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/SaldoProjetado"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+
+schemas:
+  SaldoProjetado:
+    type: object
+    properties:
+      hoje:
+        type: string
+        format: date
+        description: Hoje no fuso do usuário.
+        example: "2026-07-15"
+      ate:
+        type: string
+        format: date
+        example: "2026-08-31"
+      contas:
+        type: array
+        items:
+          $ref: "#/schemas/ContaProjetada"
+      avisos:
+        type: array
+        description: Configurações incompletas que deixam fluxos fora da projeção.
+        items:
+          $ref: "#/schemas/AvisoProjecao"
+
+  ContaProjetada:
+    type: object
+    properties:
+      conta:
+        type: object
+        properties:
+          id:
+            type: integer
+            example: 3
+          nome:
+            type: string
+            example: Itaú CC
+          tipo:
+            type: string
+            enum: [debito, aplicacao]
+            example: debito
+          titular_id:
+            type: integer
+            example: 7
+          titular_nome:
+            type: string
+            example: Erica
+      saldo_base:
+        type: number
+        format: float
+        nullable: true
+        example: 10000
+      saldo_base_data:
+        type: string
+        format: date
+        nullable: true
+        example: "2026-07-01"
+      sem_saldo_base:
+        type: boolean
+        description: true quando a conta não tem saldo_base — a projeção mostra só os fluxos.
+        example: false
+      fluxo_liquido:
+        type: number
+        format: float
+        description: Soma dos eventos do intervalo (entradas positivas, saídas negativas).
+        example: 9650
+      saldo_projetado:
+        type: number
+        format: float
+        nullable: true
+        description: saldo_base + fluxo_liquido; null quando sem_saldo_base.
+        example: 19650
+      eventos:
+        type: array
+        description: Timeline ordenada por data — a UI monta o gráfico/extrato futuro.
+        items:
+          $ref: "#/schemas/EventoProjecao"
+
+  EventoProjecao:
+    type: object
+    properties:
+      data:
+        type: string
+        format: date
+        example: "2026-08-05"
+      tipo:
+        type: string
+        enum: [receita, receita_esperada, parcela_debito, fatura, despesa_esperada]
+        example: fatura
+      descricao:
+        type: string
+        example: Fatura BTG Black (AGO-26)
+      valor:
+        type: number
+        format: float
+        description: Com sinal — entradas positivas, saídas negativas.
+        example: -300
+      valor_indefinido:
+        type: boolean
+        description: >
+          Presente (true) em receita esperada de contrato variável sem
+          valor_esperado — entra na soma como 0; a UI deve sinalizar.
+        example: true
+
+  AvisoProjecao:
+    type: object
+    properties:
+      tipo:
+        type: string
+        enum: [cartao_sem_conta_debito, despesas_fixas_sem_meio_padrao, receitas_fixas_sem_conta_destino]
+        example: cartao_sem_conta_debito
+      mensagem:
+        type: string
+        example: "Cartões sem conta de débito vinculada (faturas fora da projeção): Nubank Erica G"
+      quantidade:
+        type: integer
+        example: 1

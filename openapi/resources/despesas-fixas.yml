@@ -440,6 +440,17 @@ schemas:
           anterior precisa estar encerrada e pertencer ao mesmo escopo. Não é
           alterável após a criação.
         example: null
+      cartao_conta_padrao_id:
+        type: integer
+        nullable: true
+        description: >
+          Meio de pagamento padrão do contrato (qualquer tipo: cartão de
+          crédito, conta débito ou aplicação). Herdado pelas compras
+          vinculadas quando cartao_conta_id vem omitido no lançamento, e usado
+          pela projeção de saldo (crédito resolve a conta via conta_debito_id
+          do cartão) — contrato sem meio padrão fica fora da projeção (aparece
+          nos avisos).
+        example: 2
 
   DespesaFixa:
     allOf:

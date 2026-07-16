@@ -254,32 +254,63 @@ paths:
 schemas:
   CartaoContaInput:
     type: object
-    required: [nome, tipo]
+    required: [nome, tipo, titular_id]
+    description: >
+      Uma linha por instrumento. tipo credito = cartão (fatura, limite, conta
+      que paga); debito/aplicacao = conta (saldo_base, sem campos de fatura).
+      Campos de um tipo enviados no outro são rejeitados com 400.
     properties:
       nome:
         type: string
         example: Nubank
       tipo:
         type: string
-        enum: [credito, debito]
+        enum: [credito, debito, aplicacao]
         example: credito
       titular_id:
         type: integer
-        nullable: true
+        description: Obrigatório — dono do instrumento (e da fatura/saldo).
         example: 1
       limite:
         type: number
         format: float
         nullable: true
+        description: Apenas tipo credito.
         example: 12000
       dia_fechamento:
         type: integer
         nullable: true
+        description: Apenas tipo credito.
         example: 19
       dia_vencimento:
         type: integer
         nullable: true
+        description: Apenas tipo credito.
         example: 25
+      conta_debito_id:
+        type: integer
+        nullable: true
+        description: >
+          Apenas tipo credito: conta (débito/aplicação, do MESMO titular) de
+          onde sai o pagamento da fatura. É o elo usado pela projeção de saldo
+          para agregar faturas por conta — cartões sem esse vínculo ficam fora
+          da projeção (aparecem nos avisos).
+        example: 3
+      saldo_base:
+        type: number
+        format: float
+        nullable: true
+        description: >
+          Apenas contas (débito/aplicação): saldo de referência no fim do dia
+          saldo_base_data — ponto de partida da projeção. Os dois campos andam
+          juntos (400 se um vier sem o outro). Atualizar periodicamente via PUT.
+        example: 2500.5
+      saldo_base_data:
+        type: string
+        format: date
+        nullable: true
+        description: Data de referência do saldo_base (apenas contas).
+        example: "2026-07-01"
 
   CartaoConta:
     allOf:
@@ -304,6 +335,11 @@ schemas:
   CartaoCasaVisibilidadeInput:
     type: object
     required: [casa_id]
+    description: >
+      Dois consentimentos independentes por casa: compartilhado (a casa vê os
+      lançamentos do cartão/conta) e compartilha_saldo (a casa vê o saldo e a
+      projeção da conta em /saldo-projetado). No PATCH, campo omitido mantém o
+      valor atual.
     properties:
       casa_id:
         type: integer
@@ -312,6 +348,11 @@ schemas:
         type: boolean
         default: false
         example: true
+      compartilha_saldo:
+        type: boolean
+        default: false
+        description: Opt-in do titular para expor saldo/projeção da conta à casa.
+        example: false
 
   CartaoCasaVisibilidade:
     allOf:

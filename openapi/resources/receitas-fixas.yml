@@ -448,6 +448,16 @@ schemas:
           mudança de salário). A anterior precisa estar encerrada e pertencer
           ao mesmo escopo. Não é alterável após a criação.
         example: null
+      conta_destino_id:
+        type: integer
+        nullable: true
+        description: >
+          Conta destino padrão do contrato (débito/aplicação). Herdada pelas
+          receitas vinculadas quando o campo vem omitido no lançamento, e
+          usada pela projeção de saldo para as ocorrências esperadas —
+          contrato sem conta destino fica fora da projeção (aparece nos
+          avisos).
+        example: 3
 
   ReceitaFixa:
     allOf:

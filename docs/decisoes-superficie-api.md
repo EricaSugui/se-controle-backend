@@ -141,6 +141,41 @@ para mudança **permanente**; exceção é para o mês fora do padrão.
 - Fora de escopo: motivos categorizados (texto livre por ora) e sugestão
   automática de exceção por padrão histórico.
 
+### Contas e saldo projetado — evolução de cartoes_contas, sem tabela nova
+
+Contas correntes/aplicações NÃO viraram tabela própria: `cartoes_contas` é a
+entidade única (1 linha por instrumento), com `tipo` distinguindo `credito` /
+`debito` / `aplicacao`. O achado central do desenho: o elo que faltava não
+era "portador" (quem gastou já é `compras.pessoa_id`) e sim **fatura → conta
+que paga** (`conta_debito_id` nos cartões de crédito, mesma titularidade).
+
+- **`titular_id` é obrigatório** (NOT NULL + RESTRICT) — cartão órfão quebra
+  agregação por conta e RLS de faturas.
+- **`saldo_base` + `saldo_base_data`** moram na conta (par obrigatório;
+  multi-conta por pessoa é real, sem fallback em pessoa). O saldo vale no fim
+  do dia de referência; a projeção soma eventos com data posterior.
+- **Conta destino/meio padrão nos contratos**: `receitas_fixas.conta_destino_id`
+  e `despesas_fixas.cartao_conta_padrao_id`, com **herança server-side** nos
+  lançamentos vinculados — campo OMITIDO herda; `null` explícito não
+  (pix/dinheiro deliberado). Mesma distinção undefined/null do default de
+  `competencia_referencia`.
+- **PIX exige conta, dinheiro não**: flag `exige_conta` no catálogo
+  `formas_pagamento` (curado pelo admin do sistema), sem enum novo. Compra
+  com forma exigente e sem conta após a herança → 400. Dinheiro físico é a
+  única categoria legitimamente sem conta — fica fora da projeção.
+- **Saldo é opt-in por conta × casa**: `compartilha_saldo` em
+  `cartao_casa_visibilidade`, separado do `compartilhado` de lançamentos —
+  consentimentos independentes (casal compartilha tudo; filha compartilha
+  lançamentos sem expor saldo).
+- **`GET /saldo-projetado`** é derivado, nunca armazenado: saldo_base +
+  receitas lançadas/esperadas − parcelas de débito − faturas a vencer −
+  despesas esperadas, respeitando exceções (justificados fora) e o fuso do
+  usuário. Sem double-count por construção (esperado não lançado não está em
+  fatura; lançado sai dos esperados). Avisos apontam configuração incompleta
+  em vez de falhar.
+- Fora de escopo: `portador_id` formal (cosmético — `compras.pessoa_id` já
+  rastreia quem gastou).
+
 ### Fuso horário — "hoje" é do usuário, não do servidor
 
 Toda lógica sensível a "hoje" (status de despesas/receitas fixas, filtro

@@ -291,6 +291,12 @@ schemas:
       cartao_conta_id:
         type: integer
         nullable: true
+        description: >
+          Meio de pagamento da compra. **Herança**: em compra vinculada a
+          despesa fixa, campo OMITIDO herda o cartao_conta_padrao_id do
+          contrato; null explícito = sem cartão/conta (dinheiro). Se a
+          forma_pagamento tem exige_conta (ex. PIX), null após a herança é
+          rejeitado com 400.
         example: 2
       forma_pagamento_id:
         type: integer

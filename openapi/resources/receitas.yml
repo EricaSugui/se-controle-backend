@@ -202,6 +202,15 @@ schemas:
           dentro da vigência; para receitas anuais, deve usar o mês de início
           da vigência (mês-âncora).
         example: null
+      conta_destino_id:
+        type: integer
+        nullable: true
+        description: >
+          Conta em que a receita entra (débito/aplicação; cartão de crédito é
+          rejeitado com 400). Usada pela projeção de saldo. **Herança**: em
+          receita vinculada a receita fixa, campo OMITIDO herda o
+          conta_destino_id do contrato; null explícito = sem conta.
+        example: null
 
   Receita:
     allOf:
