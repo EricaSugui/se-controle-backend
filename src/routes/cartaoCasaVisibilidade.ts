@@ -41,12 +41,15 @@ router.post('/', autenticar, async (req, res, next) => {
     if (autorizacao === 'nao_encontrado') return res.status(404).json({ erro: 'Cartão/conta não encontrado' });
     if (autorizacao === 'sem_permissao') return res.status(403).json({ erro: 'Apenas o titular pode gerenciar a visibilidade deste cartão' });
 
-    const { casa_id, compartilhado } = req.body;
+    const { casa_id, compartilhado, compartilha_saldo } = req.body;
     if (!casa_id) return res.status(400).json({ erro: 'casa_id é obrigatório' });
+    if (compartilha_saldo !== undefined && typeof compartilha_saldo !== 'boolean') {
+      return res.status(400).json({ erro: 'compartilha_saldo deve ser um booleano' });
+    }
 
     const { rows } = await pool.query(
-      `INSERT INTO cartao_casa_visibilidade (cartao_id, casa_id, compartilhado) VALUES ($1, $2, $3) RETURNING *`,
-      [cartaoId, casa_id, compartilhado === true]
+      `INSERT INTO cartao_casa_visibilidade (cartao_id, casa_id, compartilhado, compartilha_saldo) VALUES ($1, $2, $3, $4) RETURNING *`,
+      [cartaoId, casa_id, compartilhado === true, compartilha_saldo === true]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -63,12 +66,23 @@ router.patch('/:casaId', autenticar, async (req, res, next) => {
     if (autorizacao === 'nao_encontrado') return res.status(404).json({ erro: 'Cartão/conta não encontrado' });
     if (autorizacao === 'sem_permissao') return res.status(403).json({ erro: 'Apenas o titular pode gerenciar a visibilidade deste cartão' });
 
-    const { compartilhado } = req.body;
-    if (typeof compartilhado !== 'boolean') return res.status(400).json({ erro: 'compartilhado (boolean) é obrigatório' });
+    const { compartilhado, compartilha_saldo } = req.body;
+    if (compartilhado === undefined && compartilha_saldo === undefined) {
+      return res.status(400).json({ erro: 'informe compartilhado e/ou compartilha_saldo (boolean)' });
+    }
+    if (compartilhado !== undefined && typeof compartilhado !== 'boolean') {
+      return res.status(400).json({ erro: 'compartilhado deve ser um booleano' });
+    }
+    if (compartilha_saldo !== undefined && typeof compartilha_saldo !== 'boolean') {
+      return res.status(400).json({ erro: 'compartilha_saldo deve ser um booleano' });
+    }
 
+    // omitido mantém o valor atual — os dois consentimentos são independentes
     const { rows } = await pool.query(
-      `UPDATE cartao_casa_visibilidade SET compartilhado = $1 WHERE cartao_id = $2 AND casa_id = $3 RETURNING *`,
-      [compartilhado, cartaoId, req.params.casaId]
+      `UPDATE cartao_casa_visibilidade
+       SET compartilhado = COALESCE($1, compartilhado), compartilha_saldo = COALESCE($2, compartilha_saldo)
+       WHERE cartao_id = $3 AND casa_id = $4 RETURNING *`,
+      [compartilhado ?? null, compartilha_saldo ?? null, cartaoId, req.params.casaId]
     );
     if (rows.length === 0) return res.status(404).json({ erro: 'Entrada de visibilidade não encontrada' });
     res.json(rows[0]);
