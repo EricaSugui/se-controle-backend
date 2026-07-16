@@ -42,11 +42,14 @@ router.post('/', autenticar, async (req, res, next) => {
 
     if (!nome || !tipo) return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
     if (tipo !== 'credito' && tipo !== 'debito') return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
+    if (titular_id === undefined || titular_id === null) {
+      return res.status(400).json({ erro: 'titular_id é obrigatório' });
+    }
     if (limite !== undefined && limite !== null && !ehNumeroValido(limite)) {
       return res.status(400).json({ erro: 'limite deve ser um número' });
     }
 
-    if (titular_id !== undefined && titular_id !== null && Number(titular_id) !== pessoaId) {
+    if (Number(titular_id) !== pessoaId) {
       const { rows: permRows } = await pool.query(
         `SELECT EXISTS (
            SELECT 1
@@ -94,6 +97,9 @@ router.put('/:id', autenticar, async (req, res, next) => {
 
     if (!nome || !tipo) return res.status(400).json({ erro: 'nome e tipo são obrigatórios' });
     if (tipo !== 'credito' && tipo !== 'debito') return res.status(400).json({ erro: "tipo deve ser 'credito' ou 'debito'" });
+    if (titular_id === undefined || titular_id === null) {
+      return res.status(400).json({ erro: 'titular_id é obrigatório' });
+    }
     if (limite !== undefined && limite !== null && !ehNumeroValido(limite)) {
       return res.status(400).json({ erro: 'limite deve ser um número' });
     }
