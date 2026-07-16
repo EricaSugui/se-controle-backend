@@ -39,9 +39,12 @@
 - **`pode_editar` nos GETs de despesas/receitas fixas** — compras/receitas
   têm; fixas não. Adicionar se o frontend sentir falta (o app pode inferir
   pelo papel na casa enquanto isso).
-- ~~Aba de performance do linter do Supabase~~ — revisada em jul/2026: os 2
-  alertas (auth_rls_initplan em pessoas) corrigidos; segurança já tratada na
-  PR #26.
+- ~~Aba de performance do linter do Supabase~~ — revisada em jul/2026:
+  auth_rls_initplan (2, pessoas) corrigidos e as 30 FKs sem índice
+  indexadas. Os 4 `unused_index` são os índices intencionais de gap
+  detection/projeção — mantidos de propósito (base pequena usa seq scan;
+  pagam quando o volume crescer). Ignorar `unused_index` enquanto a base
+  for pequena. Segurança já tratada na PR #26.
 
 ## Riscos aceitos (reavaliar se o contexto mudar)
 
