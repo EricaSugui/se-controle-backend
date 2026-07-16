@@ -154,6 +154,19 @@ async function validarVinculoDespesaFixa(
   return { despesaFixaId: despesa.id, competenciaReferencia: referencia, cartaoContaPadrao: despesa.cartao_conta_padrao_id };
 }
 
+// PIX exige conta, dinheiro não: forma de pagamento com exige_conta = true
+// rejeita compra sem cartao_conta_id (roda APÓS a herança do padrão do
+// contrato — só falha se nem o default resolveu a conta).
+async function validarFormaPagamento(formaPagamentoId: unknown, cartaoContaEfetivo: number | null): Promise<void> {
+  if (formaPagamentoId === undefined || formaPagamentoId === null) return;
+
+  const { rows } = await pool.query('SELECT nome, exige_conta FROM formas_pagamento WHERE id = $1', [formaPagamentoId]);
+  if (rows.length === 0) throw new ErroValidacaoCompra('forma_pagamento_id inválido');
+  if (rows[0].exige_conta && cartaoContaEfetivo === null) {
+    throw new ErroValidacaoCompra(`a forma de pagamento "${rows[0].nome}" exige uma conta/cartão (informe cartao_conta_id)`);
+  }
+}
+
 const FROM_BASE = `
   FROM compras c
   LEFT JOIN pessoas p ON p.id = c.pessoa_id
@@ -288,8 +301,10 @@ router.post('/', autenticar, async (req, res, next) => {
       const vinculo = await validarVinculoDespesaFixa(despesa_fixa_id, competencia_referencia, casa_id, pessoa_id, competencia);
 
       // cartão/conta OMITIDO (undefined) herda o padrão do contrato vinculado;
-      // null explícito = sem cartão (pix/dinheiro deliberado, não sobrescrever)
+      // null explícito = sem cartão (dinheiro deliberado, não sobrescrever)
       const cartaoContaEfetivo = cartao_conta_id === undefined ? vinculo.cartaoContaPadrao : orNull(cartao_conta_id);
+
+      await validarFormaPagamento(forma_pagamento_id, cartaoContaEfetivo);
 
       // lancado_por_id é sempre o usuário autenticado, nunca o valor enviado pelo cliente
       const { rows: compraRows } = await client.query(
@@ -379,8 +394,10 @@ router.put('/:id', autenticar, async (req, res, next) => {
       const vinculo = await validarVinculoDespesaFixa(despesa_fixa_id, competencia_referencia, casa_id, pessoa_id, competencia);
 
       // cartão/conta OMITIDO (undefined) herda o padrão do contrato vinculado;
-      // null explícito = sem cartão (pix/dinheiro deliberado, não sobrescrever)
+      // null explícito = sem cartão (dinheiro deliberado, não sobrescrever)
       const cartaoContaEfetivo = cartao_conta_id === undefined ? vinculo.cartaoContaPadrao : orNull(cartao_conta_id);
+
+      await validarFormaPagamento(forma_pagamento_id, cartaoContaEfetivo);
 
       // lancado_por_id não é alterável — permanece com quem registrou originalmente
       const { rows: compraRows } = await client.query(
