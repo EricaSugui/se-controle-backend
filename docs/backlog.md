@@ -6,11 +6,11 @@
 
 ## Entregue recentemente
 
-- ✅ **Projeção de saldo** (`GET /saldo-projetado`) — evolução de
+- ✅ **Projeção de saldo** (`GET /saldo-projetado`, PR #28) — evolução de
   cartoes_contas (tipo aplicacao, saldo_base, conta_debito_id), conta destino
   nos contratos com herança, PIX exige conta, compartilhamento de saldo
-  opt-in. Pendente do lado do app: tela + handoff
-  `handoff-frontend-saldo-projetado.md`.
+  opt-in. **Frontend concluído** (jul/2026), incluindo os handoffs
+  anteriores (despesas/receitas fixas, fuso, exceções).
 
 ## Próximos candidatos
 
@@ -39,9 +39,6 @@
 - **`pode_editar` nos GETs de despesas/receitas fixas** — compras/receitas
   têm; fixas não. Adicionar se o frontend sentir falta (o app pode inferir
   pelo papel na casa enquanto isso).
-- **`PUT /pessoas/:id` apaga `email` quando omitido** (semântica replace) —
-  já mordeu num teste. Trocar por `COALESCE` como foi feito com
-  `fuso_horario`.
 - **Aba de performance do linter do Supabase** — nunca revisada (índices,
   etc.). Os alertas de segurança foram todos tratados na PR #26.
 
@@ -56,5 +53,5 @@
 
 ## Do lado do frontend (se-controle-rn)
 
-- Consumir os 3 handoffs em `docs/`: despesas fixas, receitas fixas + fuso
-  horário, e exceções (`justificado` muda os enums de status!).
+- ✅ Todos os handoffs consumidos (despesas/receitas fixas, fuso, exceções e
+  saldo projetado) — app em dia com o contrato 3.5.0.

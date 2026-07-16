@@ -82,8 +82,8 @@ Receita pontual/avulsa continua indo direto em `POST /receitas`, sem template.
 - **Sugestão de UX**: na tela de perfil, oferecer o fuso com sugestão do
   dispositivo (`Intl.DateTimeFormat().resolvedOptions().timeZone`) — enviar
   só se o usuário confirmar/alterar.
-- **Atenção**: o PUT de pessoas é replace de `nome`/`email` — enviar sempre
-  os valores atuais desses campos junto.
+- ~~**Atenção**: o PUT de pessoas é replace de `nome`/`email`~~ (corrigido
+  depois: `email` omitido agora mantém o atual; `null` explícito limpa).
 
 ## Checklist de integração
 
