@@ -39,8 +39,9 @@
 - **`pode_editar` nos GETs de despesas/receitas fixas** — compras/receitas
   têm; fixas não. Adicionar se o frontend sentir falta (o app pode inferir
   pelo papel na casa enquanto isso).
-- **Aba de performance do linter do Supabase** — nunca revisada (índices,
-  etc.). Os alertas de segurança foram todos tratados na PR #26.
+- ~~Aba de performance do linter do Supabase~~ — revisada em jul/2026: os 2
+  alertas (auth_rls_initplan em pessoas) corrigidos; segurança já tratada na
+  PR #26.
 
 ## Riscos aceitos (reavaliar se o contexto mudar)
 
