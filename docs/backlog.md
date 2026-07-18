@@ -14,6 +14,19 @@
 
 ## Próximos candidatos
 
+- **Motor de cenários** — formalizar o motor de projeção como camada pura e
+  isolada: recebe estado real (contratos vigentes de despesa_fixa/
+  receita_fixa, faturas, saldos) + conjunto de **deltas hipotéticos**,
+  devolve linha do tempo projetada, sem efeitos colaterais e sem persistir
+  nada no ledger. Sobre ele, introduzir a entidade **`cenario`** = estado
+  real + deltas (transação fictícia, contrato alterado, contrato encerrado),
+  persistível e comparável lado a lado. Responde às três perguntas-tese:
+  comprometimento de renda (agregação), "posso comprar X?" (transação
+  simulada), "e se a renda cair 20%?" (contrato modificado).
+  **Pré-requisito**: desacoplar a lógica de projeção da tela atual de saldo
+  projetado (hoje o cálculo vive em `services/saldoProjetado.ts` acoplado ao
+  escopo/params do endpoint). Coerente com os princípios existentes:
+  derived views over stored state; comportamento ≠ classificação.
 - **Projeção no tempo (gráfico)**: o endpoint já devolve a timeline de
   eventos por conta — a UI decide granularidade; se precisar de série diária
   agregada pelo backend, é evolução pequena do service.
