@@ -162,6 +162,17 @@ schemas:
           id:
             type: integer
             example: 1
+          icone:
+            type: string
+            description: >
+              Nome do ícone (@expo/vector-icons). Maioria em
+              MaterialCommunityIcons; exceção documentada no cliente é "pix",
+              que pertence a MaterialIcons.
+            example: pix
+          cor:
+            type: string
+            description: Cor hexadecimal associada à forma de pagamento.
+            example: "#00BFA5"
           ativo:
             type: boolean
             example: true
