@@ -146,6 +146,14 @@ schemas:
       nome:
         type: string
         example: Energia
+      icone:
+        type: string
+        description: Nome do ícone na família MaterialCommunityIcons (@expo/vector-icons).
+        example: home-outline
+      cor:
+        type: string
+        description: Cor hexadecimal associada à categoria.
+        example: "#66BB6A"
       ativo:
         type: boolean
         example: true
