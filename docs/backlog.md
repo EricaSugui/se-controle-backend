@@ -19,6 +19,13 @@
 
 ## Próximos candidatos
 
+- **Relatório de gastos** (`GET /relatorios/gastos`) — matriz mês ×
+  categoria × pessoa por casa (`casa_id` obrigatório, nunca mistura casas),
+  com intervalo de competências e eixo competência|caixa. O app deriva da
+  matriz as três visões: por categoria, por pessoa e o drill-down
+  categoria×pessoa ("quem gasta mais com educação"). Desenho fechado em
+  `relatorio-gastos.md`. Fonte: compras + parcelas (mesmo padrão dual-eixo
+  do dashboard); ícone/cor de categorias já disponíveis para a UI.
 - **Motor de cenários** — formalizar o motor de projeção como camada pura e
   isolada: recebe estado real (contratos vigentes de despesa_fixa/
   receita_fixa, faturas, saldos) + conjunto de **deltas hipotéticos**,
@@ -41,6 +48,12 @@
 
 ## Backlog de features (sem urgência, já com contexto)
 
+- **Acerto de contas / reembolso** — relatório "quem bancou" com rateio
+  resolvido (`compra_pagadores` → senão `percentuais_custeio`), para casas
+  de gestão compartilhada (caso Casa da Mamãe: irmã paga 100% e é
+  reembolsada). A regra está documentada em `regra-rateio-custeio.md` e
+  nunca foi implementada em código. Deliberadamente fora do v1 do relatório
+  de gastos — é outra pergunta ("quem pagou", não "de quem é o gasto").
 - **Hash chain** — intenção antiga de adicionar uma cadeia de hash ao
   backend (integridade/auditoria de lançamentos). Nunca escopado.
 - **`POST /despesas-fixas/:id/reajustar` atômico** (e espelho em receitas) —
