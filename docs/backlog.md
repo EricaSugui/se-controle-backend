@@ -1,7 +1,6 @@
 # Backlog — se-controle-backend
 
-> Atualizado em 2026-07-16, após a projeção de saldo (branch
-> feature/saldo-projetado). Fonte da verdade dos pendentes; as decisões já
+> Atualizado em 2026-07-25. Fonte da verdade dos pendentes; as decisões já
 > tomadas estão em `decisoes-superficie-api.md`.
 
 ## Entregue recentemente
@@ -11,6 +10,12 @@
   nos contratos com herança, PIX exige conta, compartilhamento de saldo
   opt-in. **Frontend concluído** (jul/2026), incluindo os handoffs
   anteriores (despesas/receitas fixas, fuso, exceções).
+- ✅ **Ícone e cor em categorias e formas_pagamento** (PRs #35/#36,
+  jul/2026) — colunas curadas no banco em vez de mapa fixo no cliente.
+  Consumido no app pelos selectors (CategoriaSelector, CartaoContaSelector,
+  FormaPagamentoSelector — PRs #34–#36 do se-controle-rn).
+- ✅ **Competência default deriva da data** (handoff PR #34; fix no app na
+  PR #33 do se-controle-rn) — dados históricos já corrigidos no banco.
 
 ## Próximos candidatos
 
@@ -70,5 +75,6 @@
 
 ## Do lado do frontend (se-controle-rn)
 
-- ✅ Todos os handoffs consumidos (despesas/receitas fixas, fuso, exceções e
-  saldo projetado) — app em dia com o contrato 3.5.0.
+- ✅ Todos os handoffs consumidos (despesas/receitas fixas, fuso, exceções,
+  saldo projetado, competência default e ícone/cor) — app em dia com o
+  contrato 3.5.0.
