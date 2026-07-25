@@ -19,6 +19,14 @@
 
 ## Próximos candidatos
 
+- **Acerto de contas / reembolso** — necessidade real HOJE (Casa da Mamãe).
+  Conta corrente entre as pessoas da casa: acertos mensais derivados
+  (desembolsado via titular do meio − devido via rateio de
+  `regra-rateio-custeio.md`) + pagamentos/adiantamentos persistidos em
+  `acerto_pagamentos`. Desenho fechado em `acerto-contas.md` (inclui
+  eixo competência|caixa com precedência casa→compra e vínculo tardio do
+  login da irmã via /auth/vincular). Deliberadamente separado do relatório
+  de gastos — é outra pergunta ("quem pagou", não "de quem é o gasto").
 - **Relatório de gastos** (`GET /relatorios/gastos`) — matriz mês ×
   categoria × pessoa por casa (`casa_id` obrigatório, nunca mistura casas),
   com intervalo de competências e eixo competência|caixa. O app deriva da
@@ -48,12 +56,6 @@
 
 ## Backlog de features (sem urgência, já com contexto)
 
-- **Acerto de contas / reembolso** — relatório "quem bancou" com rateio
-  resolvido (`compra_pagadores` → senão `percentuais_custeio`), para casas
-  de gestão compartilhada (caso Casa da Mamãe: irmã paga 100% e é
-  reembolsada). A regra está documentada em `regra-rateio-custeio.md` e
-  nunca foi implementada em código. Deliberadamente fora do v1 do relatório
-  de gastos — é outra pergunta ("quem pagou", não "de quem é o gasto").
 - **Hash chain** — intenção antiga de adicionar uma cadeia de hash ao
   backend (integridade/auditoria de lançamentos). Nunca escopado.
 - **`POST /despesas-fixas/:id/reajustar` atômico** (e espelho em receitas) —
