@@ -1,7 +1,6 @@
 # Backlog — se-controle-backend
 
-> Atualizado em 2026-07-16, após a projeção de saldo (branch
-> feature/saldo-projetado). Fonte da verdade dos pendentes; as decisões já
+> Atualizado em 2026-07-25. Fonte da verdade dos pendentes; as decisões já
 > tomadas estão em `decisoes-superficie-api.md`.
 
 ## Entregue recentemente
@@ -11,9 +10,30 @@
   nos contratos com herança, PIX exige conta, compartilhamento de saldo
   opt-in. **Frontend concluído** (jul/2026), incluindo os handoffs
   anteriores (despesas/receitas fixas, fuso, exceções).
+- ✅ **Ícone e cor em categorias e formas_pagamento** (PRs #35/#36,
+  jul/2026) — colunas curadas no banco em vez de mapa fixo no cliente.
+  Consumido no app pelos selectors (CategoriaSelector, CartaoContaSelector,
+  FormaPagamentoSelector — PRs #34–#36 do se-controle-rn).
+- ✅ **Competência default deriva da data** (handoff PR #34; fix no app na
+  PR #33 do se-controle-rn) — dados históricos já corrigidos no banco.
 
 ## Próximos candidatos
 
+- **Acerto de contas / reembolso** — necessidade real HOJE (Casa da Mamãe).
+  Conta corrente entre as pessoas da casa: acertos mensais derivados
+  (desembolsado via titular do meio − devido via rateio de
+  `regra-rateio-custeio.md`) + pagamentos/adiantamentos persistidos em
+  `acerto_pagamentos`. Desenho fechado em `acerto-contas.md` (inclui
+  eixo competência|caixa com precedência casa→compra e vínculo tardio do
+  login da irmã via /auth/vincular). Deliberadamente separado do relatório
+  de gastos — é outra pergunta ("quem pagou", não "de quem é o gasto").
+- **Relatório de gastos** (`GET /relatorios/gastos`) — matriz mês ×
+  categoria × pessoa por casa (`casa_id` obrigatório, nunca mistura casas),
+  com intervalo de competências e eixo competência|caixa. O app deriva da
+  matriz as três visões: por categoria, por pessoa e o drill-down
+  categoria×pessoa ("quem gasta mais com educação"). Desenho fechado em
+  `relatorio-gastos.md`. Fonte: compras + parcelas (mesmo padrão dual-eixo
+  do dashboard); ícone/cor de categorias já disponíveis para a UI.
 - **Motor de cenários** — formalizar o motor de projeção como camada pura e
   isolada: recebe estado real (contratos vigentes de despesa_fixa/
   receita_fixa, faturas, saldos) + conjunto de **deltas hipotéticos**,
@@ -70,5 +90,6 @@
 
 ## Do lado do frontend (se-controle-rn)
 
-- ✅ Todos os handoffs consumidos (despesas/receitas fixas, fuso, exceções e
-  saldo projetado) — app em dia com o contrato 3.5.0.
+- ✅ Todos os handoffs consumidos (despesas/receitas fixas, fuso, exceções,
+  saldo projetado, competência default e ícone/cor) — app em dia com o
+  contrato 3.5.0.
