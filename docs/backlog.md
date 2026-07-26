@@ -16,6 +16,11 @@
   FormaPagamentoSelector — PRs #34–#36 do se-controle-rn).
 - ✅ **Competência default deriva da data** (handoff PR #34; fix no app na
   PR #33 do se-controle-rn) — dados históricos já corrigidos no banco.
+- ✅ **Reajuste atômico** (jul/2026, contrato 3.8.0) —
+  POST /despesas-fixas/:id/reajustar e /receitas-fixas/:id/reajustar:
+  encerrar + criar sucessora numa transação. Robustez pré-onboarding da
+  família. **Pendente no app**: consumir
+  `handoff-frontend-reajuste-atomico.md`.
 - ✅ **Relatório de gastos** (jul/2026, contrato 3.7.0) —
   GET /relatorios/gastos: matriz mês × categoria × pessoa por casa, eixo
   competência|caixa, ícone/cor de categoria na resposta. **Frontend
@@ -54,8 +59,6 @@
 
 - **Hash chain** — intenção antiga de adicionar uma cadeia de hash ao
   backend (integridade/auditoria de lançamentos). Nunca escopado.
-- **`POST /despesas-fixas/:id/reajustar` atômico** (e espelho em receitas) —
-  hoje o versionamento é em 2 chamadas (encerrar + criar com `*_anterior_id`).
 - **Checagem de coerência de valor nas exceções** — o status compara
   existência, não valor; `valor_ocorrido`/`valor_esperado_original` já
   gravados preparam essa checagem.

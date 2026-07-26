@@ -182,6 +182,69 @@ paths:
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
 
+  receitas-fixas-id-reajustar:
+    post:
+      tags: [Receitas Fixas]
+      summary: Reajusta uma receita fixa (encerrar + criar sucessora, atômico)
+      description: >
+        Espelho do POST /despesas-fixas/:id/reajustar. Numa única transação:
+        encerra o contrato vigente em `vigente_desde − 1 dia` e cria a nova
+        versão com `receita_fixa_anterior_id`. A nova versão herda origem,
+        descrição, confiabilidade, periodicidade e conta destino; recebe o
+        valor novo e, opcionalmente, novo dia esperado. Só vale para
+        contrato vigente.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [valor_esperado, vigente_desde]
+              properties:
+                valor_esperado:
+                  type: number
+                  format: float
+                  description: Valor reajustado da nova versão.
+                  example: 5500
+                vigente_desde:
+                  type: string
+                  format: date
+                  description: >
+                    Início da vigência da nova versão (deve ser posterior ao
+                    vigente_desde do contrato atual). O contrato atual é
+                    encerrado no dia anterior.
+                  example: "2026-08-01"
+                dia_esperado_recebimento:
+                  type: integer
+                  minimum: 1
+                  maximum: 31
+                  description: "Opcional: novo dia esperado. Default: herda do contrato atual."
+                  example: 5
+      responses:
+        "201":
+          description: Reajuste aplicado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  anterior:
+                    $ref: "#/schemas/ReceitaFixa"
+                  nova:
+                    $ref: "#/schemas/ReceitaFixa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
   receitas-fixas-id-encerrar:
     patch:
       tags: [Receitas Fixas]

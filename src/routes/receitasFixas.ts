@@ -259,6 +259,77 @@ router.use('/:id/excecoes', createExcecoesRouter({
   nomePai: 'Receita fixa',
 }));
 
+// Reajuste atômico — espelho do POST /despesas-fixas/:id/reajustar: encerra
+// o contrato vigente em vigente_desde − 1 dia e cria o sucessor com
+// receita_fixa_anterior_id na MESMA transação.
+router.post('/:id/reajustar', autenticar, async (req, res, next) => {
+  try {
+    const pessoaId = (req as any).usuario.id;
+    const { rows: existentes } = await pool.query(
+      'SELECT *, vigente_desde::text AS vigente_desde_txt FROM receitas_fixas WHERE id = $1',
+      [req.params.id]
+    );
+    if (existentes.length === 0) return res.status(404).json({ erro: 'Receita fixa não encontrada' });
+
+    const atual = existentes[0];
+    if (!(await autorizarEscrita(pessoaId, atual.casa_id, atual.pessoa_id))) {
+      return res.status(403).json({ erro: 'Você não tem permissão para reajustar esta receita fixa' });
+    }
+    if (atual.vigente_ate !== null) {
+      return res.status(400).json({ erro: 'receita fixa já encerrada — reajuste só vale para contrato vigente' });
+    }
+
+    const { valor_esperado, vigente_desde, dia_esperado_recebimento } = req.body;
+    if (!ehNumeroValido(valor_esperado)) {
+      return res.status(400).json({ erro: 'valor_esperado deve ser um número' });
+    }
+    if (!ehDataValida(vigente_desde)) {
+      return res.status(400).json({ erro: 'vigente_desde é obrigatória (formato AAAA-MM-DD)' });
+    }
+    if (vigente_desde <= atual.vigente_desde_txt) {
+      return res.status(400).json({ erro: 'vigente_desde da nova versão deve ser posterior ao vigente_desde do contrato atual' });
+    }
+    if (dia_esperado_recebimento !== undefined && dia_esperado_recebimento !== null &&
+        (!Number.isInteger(dia_esperado_recebimento) || dia_esperado_recebimento < 1 || dia_esperado_recebimento > 31)) {
+      return res.status(400).json({ erro: 'dia_esperado_recebimento deve ser um inteiro entre 1 e 31' });
+    }
+
+    // o contrato antigo termina no dia anterior ao início do novo — sem
+    // sobreposição e sem buraco na linha do tempo
+    const fimAnterior = new Date(vigente_desde);
+    fimAnterior.setUTCDate(fimAnterior.getUTCDate() - 1);
+    const vigenteAteAnterior = fimAnterior.toISOString().slice(0, 10);
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: encerradas } = await client.query(
+        'UPDATE receitas_fixas SET vigente_ate = $1 WHERE id = $2 RETURNING *',
+        [vigenteAteAnterior, req.params.id]
+      );
+      const { rows: novas } = await client.query(
+        `INSERT INTO receitas_fixas
+           (casa_id, pessoa_id, origem_id, descricao, tipo_confiabilidade, valor_esperado,
+            periodicidade, dia_esperado_recebimento, vigente_desde, vigente_ate, receita_fixa_anterior_id, lancado_por_id, conta_destino_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11, $12) RETURNING *`,
+        [
+          atual.casa_id, atual.pessoa_id, atual.origem_id, atual.descricao, atual.tipo_confiabilidade, valor_esperado,
+          atual.periodicidade, dia_esperado_recebimento ?? atual.dia_esperado_recebimento, vigente_desde, atual.id, pessoaId, atual.conta_destino_id,
+        ]
+      );
+      await client.query('COMMIT');
+      res.status(201).json({ anterior: encerradas[0], nova: novas[0] });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.patch('/:id/encerrar', autenticar, async (req, res, next) => {
   try {
     const pessoaId = (req as any).usuario.id;

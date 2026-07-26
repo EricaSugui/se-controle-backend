@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: SeControle - Controle Financeiro Familiar API
   description: API para gerenciar transações, receitas, metas e cadastros de apoio do controle financeiro familiar.
-  version: "3.7.0"
+  version: "3.8.0"
 
 servers:
   - url: http://localhost:3000
@@ -132,6 +132,8 @@ paths:
     $ref: './openapi/resources/despesas-fixas.yml#/paths/despesas-fixas-status'
   /despesas-fixas/{id}:
     $ref: './openapi/resources/despesas-fixas.yml#/paths/despesas-fixas-id'
+  /despesas-fixas/{id}/reajustar:
+    $ref: './openapi/resources/despesas-fixas.yml#/paths/despesas-fixas-id-reajustar'
   /despesas-fixas/{id}/encerrar:
     $ref: './openapi/resources/despesas-fixas.yml#/paths/despesas-fixas-id-encerrar'
   /despesas-fixas/{id}/excecoes:
@@ -144,6 +146,8 @@ paths:
     $ref: './openapi/resources/receitas-fixas.yml#/paths/receitas-fixas-status'
   /receitas-fixas/{id}:
     $ref: './openapi/resources/receitas-fixas.yml#/paths/receitas-fixas-id'
+  /receitas-fixas/{id}/reajustar:
+    $ref: './openapi/resources/receitas-fixas.yml#/paths/receitas-fixas-id-reajustar'
   /receitas-fixas/{id}/encerrar:
     $ref: './openapi/resources/receitas-fixas.yml#/paths/receitas-fixas-id-encerrar'
   /receitas-fixas/{id}/excecoes:
