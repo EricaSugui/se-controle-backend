@@ -59,10 +59,12 @@ export async function calcularResumo(
     const gastosCasa = gastosPorCasa[casa.id] || 0;
     const receitasCasa = receitasPorCasa[casa.id] || 0;
 
+    // percentual do PRÓPRIO usuário — sem o filtro de pessoa, LIMIT 1
+    // devolvia uma linha arbitrária quando a casa tem custeio compartilhado
     const { rows: percentualRows } = await pool.query(
       `SELECT percentual FROM percentuais_custeio
-       WHERE casa_id = $1 AND competencia = $2 LIMIT 1`,
-      [casa.id, competencia]
+       WHERE casa_id = $1 AND competencia = $2 AND pessoa_id = $3 LIMIT 1`,
+      [casa.id, competencia, pessoaId]
     );
     const percentual = percentualRows.length > 0 ? Number(percentualRows[0].percentual) : 100;
     const minhaParte = gastosCasa * (percentual / 100);
