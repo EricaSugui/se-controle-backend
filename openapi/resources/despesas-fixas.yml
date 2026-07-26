@@ -181,6 +181,71 @@ paths:
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
 
+  despesas-fixas-id-reajustar:
+    post:
+      tags: [Despesas Fixas]
+      summary: Reajusta uma despesa fixa (encerrar + criar sucessora, atômico)
+      description: >
+        Numa única transação: encerra o contrato vigente em
+        `vigente_desde − 1 dia` e cria a nova versão com
+        `despesa_fixa_anterior_id` apontando para ele — sem sobreposição nem
+        buraco na linha do tempo, e sem o risco do fluxo em 2 chamadas
+        deixar um contrato encerrado sem sucessor. A nova versão herda
+        categoria, descrição, tipo, periodicidade e cartão/conta padrão;
+        recebe o valor novo e, opcionalmente, novo dia esperado. Só vale
+        para contrato vigente.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [valor_referencia, vigente_desde]
+              properties:
+                valor_referencia:
+                  type: number
+                  format: float
+                  description: Valor reajustado da nova versão.
+                  example: 2200
+                vigente_desde:
+                  type: string
+                  format: date
+                  description: >
+                    Início da vigência da nova versão (deve ser posterior ao
+                    vigente_desde do contrato atual). O contrato atual é
+                    encerrado no dia anterior.
+                  example: "2026-08-01"
+                dia_esperado:
+                  type: integer
+                  minimum: 1
+                  maximum: 31
+                  description: "Opcional: novo dia esperado. Default: herda do contrato atual."
+                  example: 10
+      responses:
+        "201":
+          description: Reajuste aplicado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  anterior:
+                    $ref: "#/schemas/DespesaFixa"
+                  nova:
+                    $ref: "#/schemas/DespesaFixa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
   despesas-fixas-id-encerrar:
     patch:
       tags: [Despesas Fixas]
