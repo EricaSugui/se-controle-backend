@@ -1,0 +1,112 @@
+paths:
+  relatorios-gastos:
+    get:
+      tags: [Relatórios]
+      summary: Relatório de gastos da casa (matriz mês × categoria × pessoa)
+      description: >
+        Devolve uma linha por (mês, categoria, pessoa) com o total gasto —
+        a matriz de onde o app deriva todas as visões: gasto por categoria
+        da casa, gasto por pessoa, drill-down categoria×pessoa e a evolução
+        mês a mês. "Pessoa" é compras.pessoa_id (de quem é o gasto /
+        responsável) — quem bancou é papel do acerto de contas. Eixo
+        competência: a compra entra inteira no mês da competência; eixo
+        caixa: cada parcela entra no mês da data_caixa (parceladas se
+        espalham). Requer participação na casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: casa_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 1
+        - name: de
+          in: query
+          required: false
+          description: "Competência inicial (MMM-AA). Default: 5 meses antes de `ate`."
+          schema:
+            type: string
+            example: FEV-26
+        - name: ate
+          in: query
+          required: false
+          description: "Competência final (MMM-AA). Default: competência atual no fuso do usuário."
+          schema:
+            type: string
+            example: JUL-26
+        - name: eixo
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [competencia, caixa]
+            default: competencia
+      responses:
+        "200":
+          description: Matriz de gastos do período
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/RelatorioGastos"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+
+schemas:
+  RelatorioGastos:
+    type: object
+    properties:
+      casa_id:
+        type: integer
+        example: 1
+      de:
+        type: string
+        example: FEV-26
+      ate:
+        type: string
+        example: JUL-26
+      eixo:
+        type: string
+        enum: [competencia, caixa]
+        example: competencia
+      linhas:
+        type: array
+        description: Ordenadas por mês (cronológico), categoria e pessoa.
+        items:
+          $ref: "#/schemas/LinhaRelatorioGastos"
+
+  LinhaRelatorioGastos:
+    type: object
+    properties:
+      mes:
+        type: string
+        description: Competência MMM-AA (no eixo caixa, o mês da data_caixa).
+        example: JUL-26
+      categoria_id:
+        type: integer
+        example: 6
+      categoria_nome:
+        type: string
+        example: Educação
+      categoria_icone:
+        type: string
+        description: Nome do ícone MaterialCommunityIcons.
+        example: school-outline
+      categoria_cor:
+        type: string
+        description: Cor hex da categoria.
+        example: "#42A5F5"
+      pessoa_id:
+        type: integer
+        example: 7
+      pessoa_nome:
+        type: string
+        example: Erica
+      total:
+        type: number
+        format: float
+        example: 850.9

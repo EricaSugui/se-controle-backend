@@ -16,6 +16,10 @@
   FormaPagamentoSelector — PRs #34–#36 do se-controle-rn).
 - ✅ **Competência default deriva da data** (handoff PR #34; fix no app na
   PR #33 do se-controle-rn) — dados históricos já corrigidos no banco.
+- ✅ **Relatório de gastos** (jul/2026, contrato 3.7.0) —
+  GET /relatorios/gastos: matriz mês × categoria × pessoa por casa, eixo
+  competência|caixa, ícone/cor de categoria na resposta. **Pendente no
+  app**: consumir `handoff-frontend-relatorio-gastos.md`.
 - ✅ **Acerto de contas / reembolso** (jul/2026, contrato 3.6.0) —
   GET /casas/:id/acerto (conta corrente entre pessoas) + POST/DELETE de
   pagamentos/adiantamentos; eixo competência|caixa com precedência
@@ -26,13 +30,6 @@
 
 ## Próximos candidatos
 
-- **Relatório de gastos** (`GET /relatorios/gastos`) — matriz mês ×
-  categoria × pessoa por casa (`casa_id` obrigatório, nunca mistura casas),
-  com intervalo de competências e eixo competência|caixa. O app deriva da
-  matriz as três visões: por categoria, por pessoa e o drill-down
-  categoria×pessoa ("quem gasta mais com educação"). Desenho fechado em
-  `relatorio-gastos.md`. Fonte: compras + parcelas (mesmo padrão dual-eixo
-  do dashboard); ícone/cor de categorias já disponíveis para a UI.
 - **Motor de cenários** — formalizar o motor de projeção como camada pura e
   isolada: recebe estado real (contratos vigentes de despesa_fixa/
   receita_fixa, faturas, saldos) + conjunto de **deltas hipotéticos**,
