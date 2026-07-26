@@ -65,7 +65,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "../components/common-schemas.yml#/schemas/NomeInput"
+              $ref: "#/schemas/CasaUpdateInput"
       responses:
         "200":
           description: Casa atualizada
@@ -315,9 +315,32 @@ schemas:
       ativo:
         type: boolean
         example: true
+      acerto_eixo:
+        type: string
+        enum: [competencia, caixa]
+        default: competencia
+        description: >
+          Eixo padrão do acerto de contas da casa: competência = a compra
+          entra inteira no mês em que foi feita; caixa = entra por parcela
+          na data_caixa. Compras podem sobrepor individualmente via
+          compras.acerto_eixo.
+        example: competencia
       created_at:
         type: string
         format: date-time
+
+  CasaUpdateInput:
+    type: object
+    required: [nome]
+    properties:
+      nome:
+        type: string
+        example: Minha Casa
+      acerto_eixo:
+        type: string
+        enum: [competencia, caixa]
+        description: Omitido preserva o valor atual.
+        example: caixa
 
   CasaPessoaInput:
     type: object

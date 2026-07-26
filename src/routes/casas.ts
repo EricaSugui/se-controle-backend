@@ -73,10 +73,17 @@ router.put('/:id', autenticar, async (req, res, next) => {
       return res.status(403).json({ erro: 'Apenas admins da casa podem editá-la' });
     }
 
-    const { nome } = req.body;
+    const { nome, acerto_eixo } = req.body;
     if (!nome) return res.status(400).json({ erro: 'nome é obrigatório' });
+    if (acerto_eixo !== undefined && acerto_eixo !== 'competencia' && acerto_eixo !== 'caixa') {
+      return res.status(400).json({ erro: "acerto_eixo deve ser 'competencia' ou 'caixa'" });
+    }
 
-    const { rows } = await pool.query('UPDATE casas SET nome = $1 WHERE id = $2 RETURNING *', [nome, req.params.id]);
+    // acerto_eixo omitido preserva o valor atual (padrão do PUT /pessoas com email)
+    const { rows } = await pool.query(
+      'UPDATE casas SET nome = $1, acerto_eixo = COALESCE($2, acerto_eixo) WHERE id = $3 RETURNING *',
+      [nome, acerto_eixo ?? null, req.params.id]
+    );
     if (rows.length === 0) return res.status(404).json({ erro: 'Casa não encontrada' });
     res.json(rows[0]);
   } catch (err) {
