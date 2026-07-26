@@ -16,17 +16,16 @@
   FormaPagamentoSelector — PRs #34–#36 do se-controle-rn).
 - ✅ **Competência default deriva da data** (handoff PR #34; fix no app na
   PR #33 do se-controle-rn) — dados históricos já corrigidos no banco.
+- ✅ **Acerto de contas / reembolso** (jul/2026, contrato 3.6.0) —
+  GET /casas/:id/acerto (conta corrente entre pessoas) + POST/DELETE de
+  pagamentos/adiantamentos; eixo competência|caixa com precedência
+  casa→compra. Implementa em código a regra de `regra-rateio-custeio.md`.
+  Dados de produção: Karina criada (pessoa 39, admin da casa 2, sem login)
+  e combinado JUL-26 registrado (Karina 100 / Erica 0). **Pendente no
+  app**: consumir `handoff-frontend-acerto-contas.md`.
 
 ## Próximos candidatos
 
-- **Acerto de contas / reembolso** — necessidade real HOJE (Casa da Mamãe).
-  Conta corrente entre as pessoas da casa: acertos mensais derivados
-  (desembolsado via titular do meio − devido via rateio de
-  `regra-rateio-custeio.md`) + pagamentos/adiantamentos persistidos em
-  `acerto_pagamentos`. Desenho fechado em `acerto-contas.md` (inclui
-  eixo competência|caixa com precedência casa→compra e vínculo tardio do
-  login da irmã via /auth/vincular). Deliberadamente separado do relatório
-  de gastos — é outra pergunta ("quem pagou", não "de quem é o gasto").
 - **Relatório de gastos** (`GET /relatorios/gastos`) — matriz mês ×
   categoria × pessoa por casa (`casa_id` obrigatório, nunca mistura casas),
   com intervalo de competências e eixo competência|caixa. O app deriva da

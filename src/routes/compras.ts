@@ -15,6 +15,12 @@ function orNull<T>(value: T | undefined): T | null {
 
 class ErroValidacaoCompra extends Error {}
 
+// null/omitido = segue o padrão da casa (casas.acerto_eixo); valor explícito
+// sobrepõe o eixo do acerto só para esta compra (docs/acerto-contas.md)
+function ehAcertoEixoValido(valor: unknown): boolean {
+  return valor === undefined || valor === null || valor === 'competencia' || valor === 'caixa';
+}
+
 function podeEditarExpr(paramIndex: number): string {
   return `(c.lancado_por_id = $${paramIndex} OR EXISTS (
     SELECT 1 FROM casa_pessoas WHERE casa_id = c.casa_id AND pessoa_id = $${paramIndex} AND papel = 'admin'
@@ -268,7 +274,7 @@ router.post('/', autenticar, async (req, res, next) => {
     const {
       casa_id, pessoa_id, categoria_id, descricao, cartao_conta_id,
       forma_pagamento_id, data, competencia, total_parcelas, valor_parcela,
-      despesa_fixa_id, competencia_referencia,
+      despesa_fixa_id, competencia_referencia, acerto_eixo,
     } = req.body;
     const pessoaId = (req as any).usuario.id;
 
@@ -284,6 +290,10 @@ router.post('/', autenticar, async (req, res, next) => {
 
     if (!ehCompetenciaValida(competencia)) {
       return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
+    }
+
+    if (!ehAcertoEixoValido(acerto_eixo)) {
+      return res.status(400).json({ erro: "acerto_eixo deve ser 'competencia', 'caixa' ou null" });
     }
 
     const totalParcelas = total_parcelas || 1;
@@ -310,12 +320,12 @@ router.post('/', autenticar, async (req, res, next) => {
       const { rows: compraRows } = await client.query(
         `INSERT INTO compras
            (casa_id, pessoa_id, lancado_por_id, categoria_id, descricao, cartao_conta_id, forma_pagamento_id, data, competencia, total_parcelas,
-            despesa_fixa_id, competencia_referencia)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+            despesa_fixa_id, competencia_referencia, acerto_eixo)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
         [
           casa_id, pessoa_id, pessoaId, categoria_id, orNull(descricao),
           cartaoContaEfetivo, orNull(forma_pagamento_id), data, competencia, totalParcelas,
-          vinculo.despesaFixaId, vinculo.competenciaReferencia,
+          vinculo.despesaFixaId, vinculo.competenciaReferencia, orNull(acerto_eixo),
         ]
       );
       const compra = compraRows[0];
@@ -368,7 +378,7 @@ router.put('/:id', autenticar, async (req, res, next) => {
     const {
       casa_id, pessoa_id, categoria_id, descricao, cartao_conta_id,
       forma_pagamento_id, data, competencia, total_parcelas, valor_parcela,
-      despesa_fixa_id, competencia_referencia,
+      despesa_fixa_id, competencia_referencia, acerto_eixo,
     } = req.body;
 
     if (!casa_id || !pessoa_id || !categoria_id || !data || !competencia || valor_parcela === undefined) {
@@ -383,6 +393,10 @@ router.put('/:id', autenticar, async (req, res, next) => {
 
     if (!ehCompetenciaValida(competencia)) {
       return res.status(400).json({ erro: `competencia inválida: ${competencia}` });
+    }
+
+    if (!ehAcertoEixoValido(acerto_eixo)) {
+      return res.status(400).json({ erro: "acerto_eixo deve ser 'competencia', 'caixa' ou null" });
     }
 
     const totalParcelas = total_parcelas || 1;
@@ -404,12 +418,12 @@ router.put('/:id', autenticar, async (req, res, next) => {
         `UPDATE compras
          SET casa_id = $1, pessoa_id = $2, categoria_id = $3, descricao = $4, cartao_conta_id = $5,
              forma_pagamento_id = $6, data = $7, competencia = $8, total_parcelas = $9,
-             despesa_fixa_id = $10, competencia_referencia = $11
-         WHERE id = $12 RETURNING *`,
+             despesa_fixa_id = $10, competencia_referencia = $11, acerto_eixo = $12
+         WHERE id = $13 RETURNING *`,
         [
           casa_id, pessoa_id, categoria_id, orNull(descricao), cartaoContaEfetivo,
           orNull(forma_pagamento_id), data, competencia, totalParcelas,
-          vinculo.despesaFixaId, vinculo.competenciaReferencia, req.params.id,
+          vinculo.despesaFixaId, vinculo.competenciaReferencia, orNull(acerto_eixo), req.params.id,
         ]
       );
       const compra = compraRows[0];

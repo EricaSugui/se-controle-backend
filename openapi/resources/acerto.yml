@@ -1,0 +1,249 @@
+paths:
+  acerto:
+    get:
+      tags: [Acerto de Contas]
+      summary: Acerto de contas da casa (conta corrente entre as pessoas)
+      description: >
+        Saldo corrente entre as pessoas da casa: por compra, o DEVIDO segue o
+        rateio (compra_pagadores quando existir, senão o percentual de
+        custeio da competência da compra) e o DESEMBOLSADO é do titular do
+        meio de pagamento. Pagamentos/adiantamentos registrados entram
+        direto no saldo. O eixo efetivo de cada compra
+        (compras.acerto_eixo, senão casas.acerto_eixo) decide QUANDO ela
+        entra: competência = valor cheio no mês da compra; caixa = por
+        parcela na data_caixa. Saldo positivo = a receber; a soma entre as
+        pessoas fecha em zero. Requer participação na casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+      responses:
+        "200":
+          description: Acerto calculado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/AcertoContas"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  acerto-pagamentos:
+    post:
+      tags: [Acerto de Contas]
+      summary: Registra um pagamento/adiantamento entre pessoas da casa
+      description: >
+        Reembolso e adiantamento são o mesmo registro — uma transferência
+        real entre pessoas, fora do ledger da casa (não é receita). Requer
+        participação na casa; ambas as pessoas devem participar dela.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/AcertoPagamentoInput"
+      responses:
+        "201":
+          description: Pagamento registrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/AcertoPagamento"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+
+  acerto-pagamentos-id:
+    delete:
+      tags: [Acerto de Contas]
+      summary: Exclui um pagamento do acerto
+      description: Apenas quem registrou o pagamento ou um admin da casa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "204":
+          description: Pagamento excluído
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+schemas:
+  AcertoContas:
+    type: object
+    properties:
+      casa_id:
+        type: integer
+        example: 2
+      acerto_eixo:
+        type: string
+        enum: [competencia, caixa]
+        description: Eixo padrão da casa (compras podem sobrepor individualmente).
+        example: competencia
+      saldos:
+        type: array
+        items:
+          $ref: "#/schemas/AcertoSaldoPessoa"
+      meses:
+        type: array
+        description: Extrato mensal derivado das compras, mais recente primeiro.
+        items:
+          $ref: "#/schemas/AcertoMes"
+      pagamentos:
+        type: array
+        items:
+          $ref: "#/schemas/AcertoPagamento"
+      avisos:
+        type: array
+        items:
+          $ref: "#/schemas/AcertoAviso"
+
+  AcertoSaldoPessoa:
+    type: object
+    properties:
+      pessoa_id:
+        type: integer
+        example: 7
+      nome:
+        type: string
+        example: Erica
+      devido:
+        type: number
+        format: float
+        description: Total que a pessoa deveria bancar (rateio aplicado).
+        example: 0
+      desembolsado:
+        type: number
+        format: float
+        description: Total que saiu dos meios de pagamento da pessoa.
+        example: 1250.5
+      pagamentos_enviados:
+        type: number
+        format: float
+        example: 0
+      pagamentos_recebidos:
+        type: number
+        format: float
+        example: 800
+      saldo:
+        type: number
+        format: float
+        description: desembolsado - devido + enviados - recebidos. Positivo = a receber.
+        example: 450.5
+
+  AcertoMes:
+    type: object
+    properties:
+      mes:
+        type: string
+        description: Competência MMM-AA (no eixo caixa, o mês da data_caixa).
+        example: JUL-26
+      por_pessoa:
+        type: array
+        items:
+          type: object
+          properties:
+            pessoa_id:
+              type: integer
+              example: 7
+            nome:
+              type: string
+              example: Erica
+            devido:
+              type: number
+              format: float
+              example: 0
+            desembolsado:
+              type: number
+              format: float
+              example: 320
+            acerto:
+              type: number
+              format: float
+              description: desembolsado - devido no mês.
+              example: 320
+
+  AcertoPagamentoInput:
+    type: object
+    required: [de_pessoa_id, para_pessoa_id, valor, data]
+    properties:
+      de_pessoa_id:
+        type: integer
+        description: Quem pagou/enviou o dinheiro.
+        example: 8
+      para_pessoa_id:
+        type: integer
+        description: Quem recebeu.
+        example: 7
+      valor:
+        type: number
+        format: float
+        minimum: 0
+        exclusiveMinimum: true
+        example: 5000
+      data:
+        type: string
+        format: date
+        example: "2026-07-25"
+      observacao:
+        type: string
+        nullable: true
+        example: Adiantamento para os gastos de julho
+
+  AcertoPagamento:
+    allOf:
+      - $ref: "#/schemas/AcertoPagamentoInput"
+      - type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          casa_id:
+            type: integer
+            example: 2
+          de_pessoa_nome:
+            type: string
+            readOnly: true
+            example: Karina
+          para_pessoa_nome:
+            type: string
+            readOnly: true
+            example: Erica
+          lancado_por_id:
+            type: integer
+            nullable: true
+            readOnly: true
+            description: Definido automaticamente pelo servidor a partir do usuário autenticado.
+            example: 7
+          created_at:
+            type: string
+            format: date-time
+
+  AcertoAviso:
+    type: object
+    properties:
+      tipo:
+        type: string
+        enum: [meses_sem_combinado, compras_sem_meio, rateio_nao_soma_100, combinado_nao_soma_100]
+        example: meses_sem_combinado
+      mensagem:
+        type: string
+        example: "Compras fora do acerto: sem percentual de custeio registrado para JUN-26"
+      quantidade:
+        type: integer
+        example: 1

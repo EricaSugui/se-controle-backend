@@ -326,6 +326,16 @@ schemas:
         format: float
         description: Valor de cada parcela (todas as parcelas têm o mesmo valor).
         example: 149.40
+      acerto_eixo:
+        type: string
+        nullable: true
+        enum: [competencia, caixa, null]
+        description: >
+          Sobrepõe o eixo do acerto de contas SÓ para esta compra (ex.:
+          compra grande parcelada que deve entrar no acerto parcela a
+          parcela). null/omitido = segue o padrão da casa
+          (casas.acerto_eixo).
+        example: null
       despesa_fixa_id:
         type: integer
         nullable: true
