@@ -21,8 +21,8 @@
   pagamentos/adiantamentos; eixo competência|caixa com precedência
   casa→compra. Implementa em código a regra de `regra-rateio-custeio.md`.
   Dados de produção: Karina criada (pessoa 39, admin da casa 2, sem login)
-  e combinado JUL-26 registrado (Karina 100 / Erica 0). **Pendente no
-  app**: consumir `handoff-frontend-acerto-contas.md`.
+  e combinado JUL-26 registrado (Karina 100 / Erica 0). **Frontend
+  concluído** (PR #37 do se-controle-rn, jul/2026).
 
 ## Próximos candidatos
 
@@ -90,5 +90,5 @@
 ## Do lado do frontend (se-controle-rn)
 
 - ✅ Todos os handoffs consumidos (despesas/receitas fixas, fuso, exceções,
-  saldo projetado, competência default e ícone/cor) — app em dia com o
-  contrato 3.5.0.
+  saldo projetado, competência default, ícone/cor e acerto de contas) —
+  app em dia com o contrato 3.6.0.
