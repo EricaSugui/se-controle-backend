@@ -18,8 +18,8 @@
   PR #33 do se-controle-rn) — dados históricos já corrigidos no banco.
 - ✅ **Relatório de gastos** (jul/2026, contrato 3.7.0) —
   GET /relatorios/gastos: matriz mês × categoria × pessoa por casa, eixo
-  competência|caixa, ícone/cor de categoria na resposta. **Pendente no
-  app**: consumir `handoff-frontend-relatorio-gastos.md`.
+  competência|caixa, ícone/cor de categoria na resposta. **Frontend
+  concluído** (PR #38 do se-controle-rn, jul/2026).
 - ✅ **Acerto de contas / reembolso** (jul/2026, contrato 3.6.0) —
   GET /casas/:id/acerto (conta corrente entre pessoas) + POST/DELETE de
   pagamentos/adiantamentos; eixo competência|caixa com precedência
@@ -87,5 +87,5 @@
 ## Do lado do frontend (se-controle-rn)
 
 - ✅ Todos os handoffs consumidos (despesas/receitas fixas, fuso, exceções,
-  saldo projetado, competência default, ícone/cor e acerto de contas) —
-  app em dia com o contrato 3.6.0.
+  saldo projetado, competência default, ícone/cor, acerto de contas e
+  relatório de gastos) — app em dia com o contrato 3.7.0.
