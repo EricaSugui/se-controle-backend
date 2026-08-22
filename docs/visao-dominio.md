@@ -28,6 +28,8 @@ mudar. Detalhes de marca e posicionamento em `tenencia.md`.
 - **Cartões e contas** — os meios de pagamento têm dono (titular) e tipo:
   conta (débito/aplicação) ou cartão de crédito. Cartão de crédito gera
   **faturas** (fecham num dia, vencem noutro) que desaguam numa conta.
+- **Convites** — uma casa pode convidar alguém que já existe no sistema; o
+  convite fica pendente até a pessoa aceitar e passar a fazer parte da casa.
 
 ## O dinheiro em movimento
 

@@ -37,8 +37,11 @@ paths:
           $ref: "../components/responses.yml#/responses/NaoAutenticado"
     post:
       tags: [Convites]
-      summary: Cria um convite e envia email pelo Supabase
+      summary: Cria um convite para dashboard ou onboarding por email
       description: >
+        Normaliza o email antes da consulta e da criacao. Para pessoa com login,
+        cria convite pendente para aceitacao no dashboard, sem acionar o Supabase.
+        Para pessoa sem login,
         Salva o convite no banco e aciona o Supabase para enviar um email de convite
         ao endereço informado. O link no email redireciona ao frontend com o token
         do convite na query string e o access_token do Supabase no fragmento (#).
@@ -56,17 +59,86 @@ paths:
               $ref: "#/schemas/ConviteInput"
       responses:
         "201":
-          description: Convite criado e email enviado (sem o campo token)
+          description: Convite criado com o canal de entrega utilizado (sem o campo token)
           content:
             application/json:
               schema:
-                $ref: "#/schemas/ConviteSemToken"
+                $ref: "#/schemas/ConviteCriado"
         "400":
           $ref: "../components/responses.yml#/responses/ErroValidacao"
         "401":
           $ref: "../components/responses.yml#/responses/NaoAutenticado"
         "403":
           $ref: "../components/responses.yml#/responses/SemPermissao"
+        "409":
+          description: Pessoa ja e membro da casa ou ja existe convite pendente para o email/casa
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+        "502":
+          description: Falha ao enviar o convite de onboarding; o convite e removido
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+
+  convites-recebidos:
+    get:
+      tags: [Convites]
+      summary: Lista convites pendentes recebidos
+      description: >
+        Retorna os convites pendentes cujo email bate com o email da pessoa
+        autenticada. É o endpoint usado para exibir convites no dashboard.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Lista de convites pendentes recebidos (sem o campo token)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/ConviteSemToken"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+
+  convites-recebidos-id-aceitar:
+    patch:
+      tags: [Convites]
+      summary: Aceita um convite recebido no dashboard
+      description: >
+        Requer que o usuário autenticado seja o destinatário do convite.
+        Usa o id do convite exibido pelo endpoint de convites recebidos, sem
+        depender do token público.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Convite aceito e marcado como aceito
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ConviteSemToken"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          description: Email do usuário não corresponde ao convite
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: Convite já utilizado, expirado ou pessoa já associada à casa
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
 
   convites-token-token:
     get:
@@ -87,10 +159,11 @@ paths:
   convites-token-token-aceitar:
     patch:
       tags: [Convites]
-      summary: Aceita um convite — fluxo completo de cadastro
+      summary: Aceita um convite
       description: >
         Valida o Bearer token do Supabase, confere se o email bate com o do convite,
-        cria a pessoa no banco, vincula o supabase_user_id, adiciona à casa_pessoas
+        reutiliza uma pessoa já existente quando o email já estiver cadastrado,
+        vincula o supabase_user_id quando necessário, adiciona à casa_pessoas
         (se o convite tiver casa_id) e marca o convite como aceito. Tudo em uma
         transação atômica.
       security:
@@ -110,7 +183,7 @@ paths:
                   example: Marcela
       responses:
         "200":
-          description: Convite aceito — retorna a pessoa criada
+          description: Convite aceito — retorna a pessoa criada ou vinculada
           content:
             application/json:
               schema:
@@ -273,6 +346,17 @@ schemas:
       created_at:
         type: string
         format: date-time
+
+  ConviteCriado:
+    allOf:
+      - $ref: "#/schemas/ConviteSemToken"
+      - type: object
+        required: [entrega]
+        properties:
+          entrega:
+            type: string
+            enum: [dashboard, email_onboarding]
+            description: Canal definido internamente pelo servidor para a criacao do convite.
 
   ConviteSemToken:
     type: object

@@ -158,6 +158,10 @@ paths:
     $ref: './openapi/resources/saldo-projetado.yml#/paths/saldo-projetado'
   /convites:
     $ref: './openapi/resources/convites.yml#/paths/convites'
+  /convites/recebidos:
+    $ref: './openapi/resources/convites.yml#/paths/convites-recebidos'
+  /convites/recebidos/{id}/aceitar:
+    $ref: './openapi/resources/convites.yml#/paths/convites-recebidos-id-aceitar'
   /convites/token/{token}:
     $ref: './openapi/resources/convites.yml#/paths/convites-token-token'
   /convites/token/{token}/aceitar:
