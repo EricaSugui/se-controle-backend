@@ -7,6 +7,7 @@ import {
 } from '../utils/competencia';
 import { calcularDatasFatura, calcularMesReferenciaFatura } from '../utils/fatura';
 import { ehNumeroValido } from '../utils/numero';
+import { cancelarCompra } from '../services/relatorioAcerto';
 
 const router = Router();
 function orNull<T>(value: T | undefined): T | null {
@@ -374,6 +375,13 @@ router.put('/:id', autenticar, async (req, res, next) => {
     const autorizacao = await autorizarGerenciamento(pessoaId, req.params.id);
     if (autorizacao === 'nao_encontrado') return res.status(404).json({ erro: 'Compra não encontrada' });
     if (autorizacao === 'sem_permissao') return res.status(403).json({ erro: 'Você não tem permissão para editar esta compra' });
+    const { rows: acertoRows } = await pool.query(
+      'SELECT 1 FROM acerto_despesas WHERE origem_id = $1 LIMIT 1',
+      [req.params.id]
+    );
+    if (acertoRows.length > 0) {
+      return res.status(409).json({ erro: 'Compra já incluída em acerto confirmado; cancele-a para gerar um estorno' });
+    }
 
     const {
       casa_id, pessoa_id, categoria_id, descricao, cartao_conta_id,
@@ -454,7 +462,7 @@ router.delete('/:id', autenticar, async (req, res, next) => {
     if (autorizacao === 'nao_encontrado') return res.status(404).json({ erro: 'Compra não encontrada' });
     if (autorizacao === 'sem_permissao') return res.status(403).json({ erro: 'Você não tem permissão para excluir esta compra' });
 
-    await pool.query('DELETE FROM compras WHERE id = $1', [req.params.id]);
+    await cancelarCompra(Number(req.params.id), pessoaId, req.body?.motivo);
     res.status(204).send();
   } catch (err) {
     next(err);

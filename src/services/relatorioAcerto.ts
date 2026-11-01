@@ -31,6 +31,27 @@ type ExportacaoRelatorio = {
   }>;
 };
 
+export type RateioEstornoInput = {
+  id: number;
+  nome: string;
+  percentual: number;
+};
+
+export type AjusteEstorno = {
+  casa_id: number;
+  origem_tipo: 'compra';
+  origem_id: number;
+  tipo: 'estorno';
+  de_pessoa_id: number;
+  de_nome_snapshot: string;
+  para_pessoa_id: number;
+  para_nome_snapshot: string;
+  valor: number;
+  moeda: string;
+  data: string;
+  descricao: string;
+};
+
 function slugificar(valor: string): string {
   return valor
     .normalize('NFD')
@@ -60,6 +81,63 @@ export function calcularTotalRelatorio(participantes: ParticipanteTotal[]): numb
     0
   );
   return centavos / 100;
+}
+
+export function gerarAjustesEstorno(input: {
+  origemId: number;
+  casaId: number;
+  valor: number;
+  desembolsadoPor: { id: number; nome: string };
+  rateios: RateioEstornoInput[];
+  data: string;
+}): AjusteEstorno[] {
+  const totalCentavos = Math.round(input.valor * 100);
+  const deltas = new Map<number, { nome: string; cents: number }>();
+  const adicionar = (id: number, nome: string, cents: number) => {
+    const atual = deltas.get(id) ?? { nome, cents: 0 };
+    atual.cents += cents;
+    deltas.set(id, atual);
+  };
+  const rateioCentavos = input.rateios.map((rateio) => ({
+    ...rateio,
+    cents: Math.round(totalCentavos * rateio.percentual / 100),
+  }));
+  const diferenca = totalCentavos - rateioCentavos.reduce((sum, rateio) => sum + rateio.cents, 0);
+  if (rateioCentavos.length > 0) rateioCentavos[0].cents += diferenca;
+  adicionar(input.desembolsadoPor.id, input.desembolsadoPor.nome, -totalCentavos);
+  for (const rateio of rateioCentavos) adicionar(rateio.id, rateio.nome, rateio.cents);
+
+  const devedores = [...deltas.entries()].filter(([, delta]) => delta.cents < 0);
+  const credores = [...deltas.entries()].filter(([, delta]) => delta.cents > 0);
+  const ajustes: AjusteEstorno[] = [];
+  let devedorIndex = 0;
+  let credorIndex = 0;
+  while (devedorIndex < devedores.length && credorIndex < credores.length) {
+    const [devedorId, devedor] = devedores[devedorIndex];
+    const [credorId, credor] = credores[credorIndex];
+    const cents = Math.min(-devedor.cents, credor.cents);
+    if (devedorId !== credorId && cents > 0) {
+      ajustes.push({
+        casa_id: input.casaId,
+        origem_tipo: 'compra',
+        origem_id: input.origemId,
+        tipo: 'estorno',
+        de_pessoa_id: devedorId,
+        de_nome_snapshot: devedor.nome,
+        para_pessoa_id: credorId,
+        para_nome_snapshot: credor.nome,
+        valor: cents / 100,
+        moeda: 'BRL',
+        data: input.data,
+        descricao: 'Estorno de compra cancelada',
+      });
+    }
+    devedor.cents += cents;
+    credor.cents -= cents;
+    if (devedor.cents === 0) devedorIndex++;
+    if (credor.cents === 0) credorIndex++;
+  }
+  return ajustes;
 }
 
 function csvCampo(valor: unknown): string {
@@ -174,6 +252,7 @@ export type AcertoRelatorio = AcertoRelatorioResumo & {
     valor: number;
     data: string;
     observacao: string | null;
+    tipo: 'pagamento' | 'estorno';
   }>;
   eventos: Array<{
     tipo: string;
@@ -240,7 +319,7 @@ async function inserirSnapshot(
      JOIN pessoas pessoa ON pessoa.id = c.pessoa_id
      LEFT JOIN categorias categoria ON categoria.id = c.categoria_id
      LEFT JOIN parcelas p ON p.compra_id = c.id
-     WHERE c.casa_id = $1
+     WHERE c.casa_id = $1 AND c.status = 'ativa'
      GROUP BY c.id, pessoa.nome, categoria.nome, casa.acerto_eixo
      ORDER BY c.data, c.id`,
     [casaId]
@@ -260,13 +339,20 @@ async function inserirSnapshot(
     await client.query(
       `INSERT INTO acerto_transferencias
         (acerto_id, origem_pagamento_id, de_pessoa_id, de_nome_snapshot,
-         para_pessoa_id, para_nome_snapshot, valor, data, observacao)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [acertoId, pagamento.id, pagamento.de_pessoa_id, pagamento.de_pessoa_nome,
+         para_pessoa_id, para_nome_snapshot, valor, data, observacao, tipo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [acertoId, pagamento.id > 0 ? pagamento.id : null, pagamento.de_pessoa_id, pagamento.de_pessoa_nome,
         pagamento.para_pessoa_id, pagamento.para_pessoa_nome, pagamento.valor,
-        pagamento.data, pagamento.observacao]
+        pagamento.data, pagamento.observacao, pagamento.tipo ?? 'pagamento']
     );
   }
+
+  await client.query(
+    `UPDATE acerto_ajustes
+     SET aplicado_em_acerto_id = $1
+     WHERE casa_id = $2 AND aplicado_em_acerto_id IS NULL`,
+    [acertoId, casaId]
+  );
 
   await client.query(
     `INSERT INTO acerto_eventos (acerto_id, tipo, pessoa_id)
@@ -321,6 +407,120 @@ export async function confirmarAcerto(
   }
 }
 
+export async function cancelarCompra(
+    compraId: number,
+    pessoaId: number,
+    motivo?: string
+  ): Promise<{ estornada: boolean }> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `SELECT c.id, c.casa_id, c.status, c.data::text AS data, c.competencia,
+                COALESCE(SUM(parcela.valor), 0) AS valor,
+                cc.titular_id AS desembolsado_por_id,
+                titular.nome AS desembolsado_por_nome,
+                EXISTS (SELECT 1 FROM acerto_despesas ad WHERE ad.origem_id = c.id) AS participou
+         FROM compras c
+         LEFT JOIN parcelas parcela ON parcela.compra_id = c.id
+         LEFT JOIN cartoes_contas cc ON cc.id = c.cartao_conta_id
+         LEFT JOIN pessoas titular ON titular.id = cc.titular_id
+         WHERE c.id = $1
+         GROUP BY c.id, cc.titular_id, titular.nome`,
+        [compraId]
+      );
+      if (rows.length === 0) throw Object.assign(new Error('Compra não encontrada'), { status: 404 });
+      const compra = rows[0];
+      if (compra.status === 'cancelada') {
+        throw Object.assign(new Error('Compra já está cancelada'), { status: 409 });
+      }
+
+      if (!compra.participou) {
+        await client.query('DELETE FROM compras WHERE id = $1', [compraId]);
+        await client.query('COMMIT');
+        return { estornada: false };
+      }
+      if (!compra.desembolsado_por_id) {
+        throw Object.assign(new Error('Não é possível estornar uma compra sem desembolsador'), { status: 409 });
+      }
+
+      const { rows: rateiosDiretos } = await client.query(
+        `SELECT cp.pessoa_id AS id, p.nome, cp.percentual
+         FROM compra_pagadores cp
+         JOIN pessoas p ON p.id = cp.pessoa_id
+         WHERE cp.compra_id = $1
+         ORDER BY cp.id`,
+        [compraId]
+      );
+      const { rows: rateiosCasa } = rateiosDiretos.length === 0
+        ? await client.query(
+          `SELECT pc.pessoa_id AS id, p.nome, pc.percentual
+           FROM percentuais_custeio pc
+           JOIN pessoas p ON p.id = pc.pessoa_id
+           WHERE pc.casa_id = $1 AND pc.competencia = $2
+           ORDER BY pc.id`,
+          [compra.casa_id, compra.competencia]
+        )
+        : { rows: rateiosDiretos };
+      if (rateiosCasa.length === 0) {
+        throw Object.assign(new Error('Não foi possível reconstruir o rateio original da compra'), { status: 409 });
+      }
+
+      const explicitos = rateiosCasa.filter((rateio: { percentual: number | null }) => rateio.percentual !== null);
+      const nulos = rateiosCasa.filter((rateio: { percentual: number | null }) => rateio.percentual === null);
+      const somaExplicita = explicitos.reduce(
+        (total: number, rateio: { percentual: number | null }) => total + Number(rateio.percentual),
+        0
+      );
+      const percentualNulo = nulos.length > 0 ? Math.max(0, 100 - somaExplicita) / nulos.length : 0;
+      const rateiosNormalizados = rateiosCasa.map((rateio: { id: number; nome: string; percentual: number | null }) => ({
+        id: rateio.id,
+        nome: rateio.nome,
+        percentual: rateio.percentual === null ? percentualNulo : Number(rateio.percentual),
+      }));
+      const soma = rateiosNormalizados.reduce((total, rateio) => total + rateio.percentual, 0);
+      if (soma <= 0) throw Object.assign(new Error('O rateio original da compra é inválido'), { status: 409 });
+      const ajustes = gerarAjustesEstorno({
+        origemId: compraId,
+        casaId: compra.casa_id,
+        valor: Number(compra.valor),
+        desembolsadoPor: { id: compra.desembolsado_por_id, nome: compra.desembolsado_por_nome },
+        rateios: rateiosNormalizados.map((rateio) => ({
+          id: rateio.id,
+          nome: rateio.nome,
+          percentual: rateio.percentual * 100 / soma,
+        })),
+        data: compra.data,
+      });
+
+      await client.query(
+        `UPDATE compras
+         SET status = 'cancelada', cancelada_em = now(), cancelada_por_id = $1, cancelamento_motivo = $2
+         WHERE id = $3`,
+        [pessoaId, motivo?.trim() || null, compraId]
+      );
+      for (const ajuste of ajustes) {
+        await client.query(
+          `INSERT INTO acerto_ajustes
+            (casa_id, origem_tipo, origem_id, tipo, de_pessoa_id, de_nome_snapshot,
+             para_pessoa_id, para_nome_snapshot, valor, moeda, data, descricao)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+           ON CONFLICT (origem_tipo, origem_id, de_pessoa_id, para_pessoa_id) DO NOTHING`,
+          [ajuste.casa_id, ajuste.origem_tipo, ajuste.origem_id, ajuste.tipo,
+            ajuste.de_pessoa_id, ajuste.de_nome_snapshot, ajuste.para_pessoa_id,
+            ajuste.para_nome_snapshot, ajuste.valor, ajuste.moeda, ajuste.data, ajuste.descricao]
+        );
+      }
+      await client.query('COMMIT');
+      return { estornada: true };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+}
+
 export async function listarAcertos(casaId: number): Promise<AcertoRelatorioResumo[]> {
   const { rows } = await pool.query(
     `SELECT a.id, a.casa_id, a.confirmado_em, a.moeda, a.precisao_moeda,
@@ -370,7 +570,7 @@ export async function obterAcerto(casaId: number, acertoId: number): Promise<Ace
     ),
     pool.query(
       `SELECT de_pessoa_id, de_nome_snapshot AS de_nome, para_pessoa_id,
-              para_nome_snapshot AS para_nome, valor, data::text AS data, observacao
+              para_nome_snapshot AS para_nome, valor, data::text AS data, observacao, tipo
        FROM acerto_transferencias WHERE acerto_id = $1 ORDER BY data, id`,
       [acertoId]
     ),

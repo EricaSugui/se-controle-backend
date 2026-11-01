@@ -3,6 +3,7 @@ import {
   calcularTotalRelatorio,
   gerarCsvRelatorio,
   gerarPdfRelatorio,
+  gerarAjustesEstorno,
 } from './relatorioAcerto';
 
 describe('relatório de acerto', () => {
@@ -54,5 +55,18 @@ describe('relatório de acerto', () => {
       transferencias: [],
     });
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('cria estorno de R$ 50 para quem pagou quando a compra de R$ 100 foi rateada em 50%', () => {
+    expect(gerarAjustesEstorno({
+      origemId: 10,
+      casaId: 2,
+      valor: 100,
+      desembolsadoPor: { id: 1, nome: 'Erica' },
+      rateios: [{ id: 2, nome: 'Irmã', percentual: 50 }, { id: 1, nome: 'Erica', percentual: 50 }],
+      data: '2026-10-31',
+    })).toEqual([
+      expect.objectContaining({ de_pessoa_id: 1, para_pessoa_id: 2, valor: 50, tipo: 'estorno' }),
+    ]);
   });
 });

@@ -118,15 +118,26 @@ paths:
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
     delete:
       tags: [Compras]
-      summary: Remove uma compra
+      summary: Remove ou estorna uma compra
       description: >
         Requer que o usuário autenticado tenha registrado a compra
-        (`lancado_por_id`) ou seja admin na casa dela. Remove em cascata as
-        parcelas e o split de pagadores.
+        (`lancado_por_id`) ou seja admin na casa dela. Compras que ainda não
+        participaram de acerto confirmado são removidas. Compras já incluídas
+        em acerto são canceladas logicamente e geram ajuste de estorno para o
+        próximo acerto. O corpo pode informar um motivo.
       security:
         - bearerAuth: []
       parameters:
         - $ref: "../components/parameters.yml#/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                motivo:
+                  type: string
+                  maxLength: 255
       responses:
         "204":
           description: Compra removida
@@ -136,6 +147,8 @@ paths:
           $ref: "../components/responses.yml#/responses/SemPermissao"
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: Compra já cancelada ou não pode ser estornada
 
   compras-id-parcelas:
     get:
@@ -393,6 +406,19 @@ schemas:
             readOnly: true
             description: Se o usuário autenticado registrou a compra ou é admin na casa dela.
             example: true
+          status:
+            type: string
+            enum: [ativa, cancelada]
+            readOnly: true
+          cancelada_em:
+            type: string
+            format: date-time
+            nullable: true
+            readOnly: true
+          cancelamento_motivo:
+            type: string
+            nullable: true
+            readOnly: true
           parcelas:
             type: array
             readOnly: true
