@@ -6,6 +6,7 @@ import casasRouter from './routes/casas';
 import casaPessoasRouter from './routes/casaPessoas';
 import percentuaisCusteioRouter from './routes/percentuaisCusteio';
 import acertoContasRouter from './routes/acertoContas';
+import acertosRelatoriosRouter from './routes/acertosRelatorios';
 import categoriasRouter from './routes/categorias';
 import formasPagamentoRouter from './routes/formasPagamento';
 import cartoesContasRouter from './routes/cartoesContas';
@@ -39,6 +40,7 @@ app.use('/casas', casasRouter);
 app.use('/casas/:casaId/pessoas', casaPessoasRouter);
 app.use('/casas/:casaId/percentual-custeio', percentuaisCusteioRouter);
 app.use('/casas/:casaId/acerto', acertoContasRouter);
+app.use('/casas/:casaId/acertos', acertosRelatoriosRouter);
 app.use('/categorias', categoriasRouter);
 app.use('/formas-pagamento', formasPagamentoRouter);
 app.use('/cartoes-contas', cartoesContasRouter);
@@ -58,9 +60,9 @@ app.use('/fechamento-mensal', fechamentoMensalRouter);
 app.use('/convites', convitesRouter);
 app.use('/auth', authRouter);
 
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: Error & { status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
-  res.status(500).json({ erro: 'Erro interno do servidor' });
+  res.status(err.status ?? 500).json({ erro: err.status ? err.message : 'Erro interno do servidor' });
 });
 
 export default app;

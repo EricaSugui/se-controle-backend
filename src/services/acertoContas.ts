@@ -44,6 +44,7 @@ export interface PagamentoAcerto {
   data: string;
   observacao: string | null;
   lancado_por_id: number | null;
+  tipo?: 'pagamento' | 'estorno';
 }
 
 export interface AvisoAcerto {
@@ -123,14 +124,14 @@ export async function calcularAcerto(casaId: number): Promise<AcertoContas | nul
   if (casaRows.length === 0) return null;
   const eixoCasa: EixoAcerto = casaRows[0].acerto_eixo;
 
-  const [{ rows: compras }, { rows: parcelasCaixa }, { rows: percentuais }, { rows: pagamentos }, { rows: membros }] =
+  const [{ rows: compras }, { rows: parcelasCaixa }, { rows: percentuais }, { rows: pagamentos }, { rows: ajustes }, { rows: membros }] =
     await Promise.all([
       pool.query(
         `SELECT c.id, c.competencia, c.acerto_eixo, c.cartao_conta_id, cc.titular_id,
                 COALESCE((SELECT SUM(p.valor) FROM parcelas p WHERE p.compra_id = c.id), 0) AS valor_total
          FROM compras c
          LEFT JOIN cartoes_contas cc ON cc.id = c.cartao_conta_id
-         WHERE c.casa_id = $1`,
+         WHERE c.casa_id = $1 AND c.status = 'ativa'`,
         [casaId]
       ),
       pool.query(
@@ -151,6 +152,15 @@ export async function calcularAcerto(casaId: number): Promise<AcertoContas | nul
          JOIN pessoas ppara ON ppara.id = ap.para_pessoa_id
          WHERE ap.casa_id = $1
          ORDER BY ap.data DESC, ap.id DESC`,
+        [casaId]
+      ),
+      pool.query(
+        `SELECT id, de_pessoa_id, de_nome_snapshot AS de_pessoa_nome,
+                para_pessoa_id, para_nome_snapshot AS para_pessoa_nome,
+                valor, data::text AS data, descricao AS observacao
+         FROM acerto_ajustes
+         WHERE casa_id = $1 AND aplicado_em_acerto_id IS NULL
+         ORDER BY data DESC, id DESC`,
         [casaId]
       ),
       pool.query(
@@ -245,7 +255,16 @@ export async function calcularAcerto(casaId: number): Promise<AcertoContas | nul
   const nomes = new Map<number, string>(membros.map((m: any) => [m.id, m.nome]));
   const envolvidas = new Set<number>(nomes.keys());
   for (const porPessoa of buckets.values()) for (const id of porPessoa.keys()) envolvidas.add(id);
-  for (const pg of pagamentos) {
+  const pagamentosComAjustes = [
+    ...pagamentos,
+    ...ajustes.map((ajuste: any) => ({
+      ...ajuste,
+      id: -Number(ajuste.id),
+      lancado_por_id: null,
+      tipo: 'estorno' as const,
+    })),
+  ];
+  for (const pg of pagamentosComAjustes) {
     envolvidas.add(pg.de_pessoa_id);
     envolvidas.add(pg.para_pessoa_id);
   }
@@ -335,7 +354,11 @@ export async function calcularAcerto(casaId: number): Promise<AcertoContas | nul
     acerto_eixo: eixoCasa,
     saldos,
     meses,
-    pagamentos: pagamentos.map((pg: any) => ({ ...pg, valor: Number(pg.valor) })),
+    pagamentos: pagamentosComAjustes.map((pg: any) => ({
+      ...pg,
+      valor: Number(pg.valor),
+      tipo: pg.tipo ?? 'pagamento',
+    })),
     avisos,
   };
 }

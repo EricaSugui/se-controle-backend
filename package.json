@@ -8,25 +8,37 @@
     "migrate:up": "node-pg-migrate up",
     "migrate:down": "node-pg-migrate down",
     "migrate:create": "node-pg-migrate create",
-    "db:clean:homolog": "node scripts/clean-homolog-db.js",
+    "db:seed:homolog": "dotenv -e .env.hml -- node scripts/seed-homolog-db.js",
+    "db:clean:homolog": "dotenv -e .env.hml -- node scripts/clean-homolog-db.js",
+    "db:reset:homolog": "npm run db:clean:homolog && npm run db:seed:homolog",
     "build": "tsc",
+    "test": "jest --runInBand",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "openapi:bundle": "redocly bundle openapi.yml -o openapi.bundled.yml"
+    "openapi:bundle": "redocly bundle openapi.yml -o openapi.bundled.yml",
+    "dev:hml": "dotenv -e .env.hml -- ts-node-dev --respawn --transpile-only src/server.ts",
+    "migrate:hml": "dotenv -e .env.hml -- node-pg-migrate up",
+    "start:hml": "dotenv -e .env.hml -- node dist/server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "node-pg-migrate": "^8.0.4",
+    "pdfkit": "^0.20.2",
     "pg": "^8.21.0"
   },
   "devDependencies": {
     "@redocly/cli": "^2.38.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.25",
+    "@types/jest": "^30.0.0",
     "@types/node": "^25.9.2",
+    "@types/pdfkit": "^0.17.7",
     "@types/pg": "^8.20.0",
+    "dotenv-cli": "^11.1.0",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
     "ts-node-dev": "^2.0.0",
     "typescript": "^6.0.3"
   }

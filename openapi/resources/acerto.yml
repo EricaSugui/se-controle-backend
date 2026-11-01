@@ -1,4 +1,114 @@
 paths:
+  acertos:
+    post:
+      tags: [Acerto de Contas]
+      summary: Confirma e persiste um acerto de contas
+      description: >
+        Cria um snapshot imutável do acerto corrente da casa. A confirmação
+        não pode ser cancelada; arquivos podem ser regenerados sem alterar
+        este snapshot.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+        - $ref: "../components/parameters.yml#/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: Acerto confirmado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/AcertoRelatorio"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "409":
+          description: Solicitação já processada ou acerto incompatível
+    get:
+      tags: [Acerto de Contas]
+      summary: Lista acertos confirmados da casa
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+      responses:
+        "200":
+          description: Acertos confirmados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/AcertoRelatorioResumo"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+
+  acerto-id:
+    get:
+      tags: [Acerto de Contas]
+      summary: Obtém um acerto confirmado
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+        - $ref: "../components/parameters.yml#/parameters/AcertoId"
+      responses:
+        "200":
+          description: Snapshot completo do acerto
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/AcertoRelatorio"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
+  acerto-arquivo:
+    get:
+      tags: [Acerto de Contas]
+      summary: Gera ou regenera arquivo de um acerto confirmado
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/CasaId"
+        - $ref: "../components/parameters.yml#/parameters/AcertoId"
+        - name: formato
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [pdf, csv]
+      responses:
+        "200":
+          description: Arquivo do relatório
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "403":
+          $ref: "../components/responses.yml#/responses/SemPermissao"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
+
   acerto:
     get:
       tags: [Acerto de Contas]
@@ -84,6 +194,159 @@ paths:
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
 
 schemas:
+  AcertoRelatorioResumo:
+    type: object
+    required: [id, casa_id, confirmado_em, moeda, precisao_moeda, nome_casa, total]
+    properties:
+      id:
+        type: integer
+      casa_id:
+        type: integer
+      confirmado_em:
+        type: string
+        format: date-time
+      moeda:
+        type: string
+        pattern: "^[A-Z]{3}$"
+        example: BRL
+      precisao_moeda:
+        type: integer
+        example: 2
+      nome_casa:
+        type: string
+      total:
+        type: number
+        format: decimal
+      nome_arquivo_base:
+        type: string
+
+  AcertoRelatorio:
+    allOf:
+      - $ref: "#/schemas/AcertoRelatorioResumo"
+      - type: object
+        required: [participantes, meses, despesas, transferencias, eventos]
+        properties:
+          participantes:
+            type: array
+            items:
+              $ref: "#/schemas/AcertoRelatorioParticipante"
+          meses:
+            type: array
+            items:
+              $ref: "#/schemas/AcertoRelatorioMes"
+          despesas:
+            type: array
+            items:
+              $ref: "#/schemas/AcertoRelatorioDespesa"
+          transferencias:
+            type: array
+            items:
+              $ref: "#/schemas/AcertoRelatorioTransferencia"
+          eventos:
+            type: array
+            items:
+              $ref: "#/schemas/AcertoRelatorioEvento"
+
+  AcertoRelatorioParticipante:
+    type: object
+    required: [pessoa_id, nome, devido, desembolsado, pagamentos_enviados, pagamentos_recebidos, saldo]
+    properties:
+      pessoa_id:
+        type: integer
+      nome:
+        type: string
+      devido:
+        type: number
+      desembolsado:
+        type: number
+      pagamentos_enviados:
+        type: number
+      pagamentos_recebidos:
+        type: number
+      saldo:
+        type: number
+
+  AcertoRelatorioMes:
+    type: object
+    required: [mes, pessoa_id, nome, devido, desembolsado, acerto]
+    properties:
+      mes:
+        type: string
+      pessoa_id:
+        type: integer
+      nome:
+        type: string
+      devido:
+        type: number
+      desembolsado:
+        type: number
+      acerto:
+        type: number
+
+  AcertoRelatorioDespesa:
+    type: object
+    required: [descricao, data, competencia, valor, pessoa_id, nome_pessoa, modo_acerto]
+    properties:
+      descricao:
+        type: string
+      data:
+        type: string
+        format: date
+      competencia:
+        type: string
+      valor:
+        type: number
+      pessoa_id:
+        type: integer
+      nome_pessoa:
+        type: string
+      categoria_nome:
+        type: string
+        nullable: true
+      modo_acerto:
+        type: string
+        enum: [competencia, caixa]
+
+  AcertoRelatorioTransferencia:
+    type: object
+    required: [de_pessoa_id, de_nome, para_pessoa_id, para_nome, valor, data]
+    properties:
+      de_pessoa_id:
+        type: integer
+      de_nome:
+        type: string
+      para_pessoa_id:
+        type: integer
+      para_nome:
+        type: string
+      valor:
+        type: number
+      data:
+        type: string
+        format: date
+      observacao:
+        type: string
+        nullable: true
+      tipo:
+        type: string
+        enum: [pagamento, estorno]
+
+  AcertoRelatorioEvento:
+    type: object
+    required: [tipo, pessoa_id, created_at]
+    properties:
+      tipo:
+        type: string
+        enum: [confirmado, pdf_gerado, csv_gerado, pdf_erro, csv_erro, compartilhado]
+      pessoa_id:
+        type: integer
+      created_at:
+        type: string
+        format: date-time
+      metadados:
+        type: object
+        nullable: true
+
   AcertoContas:
     type: object
     properties:
