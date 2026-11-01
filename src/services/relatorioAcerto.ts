@@ -310,7 +310,9 @@ async function inserirSnapshot(
   }
 
   const { rows: despesas } = await client.query(
-    `SELECT c.id AS origem_id, c.descricao, c.data::text AS data, c.competencia,
+    `SELECT c.id AS origem_id,
+            COALESCE(NULLIF(c.descricao, ''), 'Compra sem descrição') AS descricao,
+            c.data::text AS data, c.competencia,
             COALESCE(SUM(p.valor), 0) AS valor, c.pessoa_id,
             pessoa.nome AS nome_pessoa, categoria.nome AS categoria_nome,
             COALESCE(c.acerto_eixo, casa.acerto_eixo) AS modo_acerto

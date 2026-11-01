@@ -3,6 +3,7 @@ dist/
 openapi.bundled.yml
 .env
 .env.local
+.env.hml
 package-lock.json
 .test-token
 .test-token-15
