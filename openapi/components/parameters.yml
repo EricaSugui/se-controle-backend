@@ -1,6 +1,24 @@
 parameters:
+  IdempotencyKey:
+    name: Idempotency-Key
+    in: header
+    required: true
+    description: Chave única para tornar a confirmação segura contra repetição.
+    schema:
+      type: string
+      minLength: 1
+      maxLength: 255
+
   Id:
     name: id
+    in: path
+    required: true
+    schema:
+      type: integer
+    example: 1
+
+  AcertoId:
+    name: acertoId
     in: path
     required: true
     schema:

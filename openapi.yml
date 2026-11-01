@@ -64,6 +64,12 @@ paths:
     $ref: './openapi/resources/casas.yml#/paths/casas-casaId-percentual-custeio'
   /casas/{casaId}/acerto:
     $ref: './openapi/resources/acerto.yml#/paths/acerto'
+  /casas/{casaId}/acertos:
+    $ref: './openapi/resources/acerto.yml#/paths/acertos'
+  /casas/{casaId}/acertos/{acertoId}:
+    $ref: './openapi/resources/acerto.yml#/paths/acerto-id'
+  /casas/{casaId}/acertos/{acertoId}/arquivo:
+    $ref: './openapi/resources/acerto.yml#/paths/acerto-arquivo'
   /casas/{casaId}/acerto/pagamentos:
     $ref: './openapi/resources/acerto.yml#/paths/acerto-pagamentos'
   /casas/{casaId}/acerto/pagamentos/{id}:
