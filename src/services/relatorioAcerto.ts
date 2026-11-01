@@ -1,4 +1,5 @@
 import { PoolClient } from 'pg';
+import PDFDocument from 'pdfkit';
 import pool from '../db';
 import { calcularAcerto, AcertoContas } from './acertoContas';
 
@@ -6,6 +7,28 @@ export type ParticipanteTotal = {
   pessoa_id?: number;
   nome?: string;
   desembolsado: number;
+};
+
+type ExportacaoRelatorio = {
+  nome_casa: string;
+  moeda: string;
+  confirmado_em: Date | string;
+  participantes: Array<{
+    nome: string;
+    devido: number;
+    desembolsado: number;
+    saldo: number;
+  }>;
+  despesas: Array<{
+    descricao: string;
+    valor: number;
+    nome_pessoa: string;
+  }>;
+  transferencias: Array<{
+    de_nome?: string;
+    para_nome?: string;
+    valor: number;
+  }>;
 };
 
 function slugificar(valor: string): string {
@@ -37,6 +60,71 @@ export function calcularTotalRelatorio(participantes: ParticipanteTotal[]): numb
     0
   );
   return centavos / 100;
+}
+
+function csvCampo(valor: unknown): string {
+  const texto = String(valor ?? '');
+  return `"${texto.replace(/"/g, '""')}"`;
+}
+
+export function gerarCsvRelatorio(relatorio: ExportacaoRelatorio): string {
+  const linhas = [
+    ['tipo', 'casa', 'data', 'mes', 'pessoa', 'descricao', 'origem', 'destino', 'moeda', 'valor', 'status'],
+    ['resumo', relatorio.nome_casa, new Date(relatorio.confirmado_em).toISOString(), '', '', '', '', '', relatorio.moeda, '', 'confirmado'],
+    ...relatorio.participantes.map((participante) => [
+      'participante', relatorio.nome_casa, '', '', participante.nome, '', '', '', relatorio.moeda,
+      participante.saldo.toFixed(2), 'confirmado',
+    ]),
+    ...relatorio.despesas.map((despesa) => [
+      'despesa', relatorio.nome_casa, '', '', despesa.nome_pessoa, despesa.descricao, '', '', relatorio.moeda,
+      despesa.valor.toFixed(2), 'confirmado',
+    ]),
+    ...relatorio.transferencias.map((transferencia) => [
+      'transferencia', relatorio.nome_casa, '', '', '', '', transferencia.de_nome ?? '',
+      transferencia.para_nome ?? '', relatorio.moeda, transferencia.valor.toFixed(2), 'confirmado',
+    ]),
+  ];
+  return `${linhas.map((linha) => linha.map(csvCampo).join(',')).join('\r\n')}\r\n`;
+}
+
+export function gerarPdfRelatorio(relatorio: ExportacaoRelatorio): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const documento = new PDFDocument({ margin: 48 });
+    const partes: Buffer[] = [];
+    documento.on('data', (parte: Buffer) => partes.push(parte));
+    documento.on('end', () => resolve(Buffer.concat(partes)));
+    documento.on('error', reject);
+
+    documento.fontSize(20).text('Relatório de acerto de contas');
+    documento.moveDown(0.5).fontSize(13).text(relatorio.nome_casa);
+    documento.fontSize(10).text(`Confirmado em: ${new Date(relatorio.confirmado_em).toISOString()}`);
+    documento.text(`Moeda: ${relatorio.moeda}`);
+    documento.moveDown();
+
+    documento.fontSize(14).text('Participantes');
+    documento.fontSize(10);
+    for (const participante of relatorio.participantes) {
+      documento.text(
+        `${participante.nome}: devido ${participante.devido.toFixed(2)} | ` +
+        `desembolsado ${participante.desembolsado.toFixed(2)} | saldo ${participante.saldo.toFixed(2)}`
+      );
+    }
+
+    documento.moveDown().fontSize(14).text('Despesas');
+    documento.fontSize(10);
+    for (const despesa of relatorio.despesas) {
+      documento.text(`${despesa.descricao} — ${despesa.nome_pessoa} — ${despesa.valor.toFixed(2)}`);
+    }
+
+    documento.moveDown().fontSize(14).text('Transferências');
+    documento.fontSize(10);
+    for (const transferencia of relatorio.transferencias) {
+      documento.text(
+        `${transferencia.de_nome ?? ''} → ${transferencia.para_nome ?? ''} — ${transferencia.valor.toFixed(2)}`
+      );
+    }
+    documento.end();
+  });
 }
 
 export type AcertoRelatorioResumo = {

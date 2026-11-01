@@ -1,4 +1,9 @@
-import { criarNomeArquivoBase, calcularTotalRelatorio } from './relatorioAcerto';
+import {
+  criarNomeArquivoBase,
+  calcularTotalRelatorio,
+  gerarCsvRelatorio,
+  gerarPdfRelatorio,
+} from './relatorioAcerto';
 
 describe('relatório de acerto', () => {
   it('usa o nome da casa no nome base do arquivo', () => {
@@ -22,5 +27,32 @@ describe('relatório de acerto', () => {
       { desembolsado: 100 },
       { desembolsado: 50.5 },
     ])).toBe(150.5);
+  });
+
+  it('gera CSV com escaping e moeda explícita', () => {
+    const csv = gerarCsvRelatorio({
+      nome_casa: 'Casa "X"',
+      moeda: 'BRL',
+      confirmado_em: new Date('2026-10-31T12:00:00Z'),
+      participantes: [{ nome: 'Erica', devido: 50, desembolsado: 100, saldo: 50 }],
+      despesas: [{ descricao: 'Calça, azul', valor: 100, nome_pessoa: 'Erica' }],
+      transferencias: [],
+    });
+    expect(csv).toContain('"Casa ""X"""');
+    expect(csv).toContain('"Calça, azul"');
+    expect(csv).toContain('participante');
+    expect(csv).toContain('BRL');
+  });
+
+  it('gera um PDF válido a partir do snapshot', async () => {
+    const pdf = await gerarPdfRelatorio({
+      nome_casa: 'Casa X',
+      moeda: 'BRL',
+      confirmado_em: new Date('2026-10-31T12:00:00Z'),
+      participantes: [{ nome: 'Erica', devido: 50, desembolsado: 100, saldo: 50 }],
+      despesas: [],
+      transferencias: [],
+    });
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
   });
 });

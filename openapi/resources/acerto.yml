@@ -334,7 +334,7 @@ schemas:
     properties:
       tipo:
         type: string
-        enum: [confirmado, pdf_gerado, csv_gerado, compartilhado]
+        enum: [confirmado, pdf_gerado, csv_gerado, pdf_erro, csv_erro, compartilhado]
       pessoa_id:
         type: integer
       created_at:
