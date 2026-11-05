@@ -20,15 +20,19 @@ interface Dashboard {
 export async function calcularResumo(
   competencia: string,
   pessoaId: number,
-  eixo: 'caixa' | 'competencia' = 'caixa'
+  eixo: 'caixa' | 'competencia' = 'caixa',
+  casaId?: number
 ): Promise<Dashboard> {
-  const { rows: casasRows } = await pool.query(
-    `SELECT c.id, c.nome FROM casas c
+  const casasParams: unknown[] = [pessoaId];
+  let casasQuery = `SELECT c.id, c.nome FROM casas c
      JOIN casa_pessoas cp ON cp.casa_id = c.id
-     WHERE c.ativo = true AND cp.pessoa_id = $1
-     ORDER BY c.nome`,
-    [pessoaId]
-  );
+     WHERE c.ativo = true AND cp.pessoa_id = $1`;
+  if (casaId !== undefined) {
+    casasParams.push(casaId);
+    casasQuery += ' AND c.id = $2';
+  }
+  casasQuery += ' ORDER BY c.nome';
+  const { rows: casasRows } = await pool.query(casasQuery, casasParams);
 
   const gastosQuery = eixo === 'competencia'
     ? `SELECT c.casa_id, COALESCE(SUM(p.valor), 0) AS total
