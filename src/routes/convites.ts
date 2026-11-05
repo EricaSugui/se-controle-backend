@@ -211,6 +211,11 @@ router.post('/', autenticar, async (req, res, next) => {
     if (pessoaExistente?.id === pessoaId) {
       return res.status(400).json({ erro: 'Você não pode convidar a si mesmo' });
     }
+    if (pessoaExistente?.supabase_user_id && casa_id == null) {
+      return res.status(400).json({
+        erro: 'Para convidar uma conta existente, selecione uma casa e envie o convite pela área de membros da casa',
+      });
+    }
     if (pessoaExistente?.supabase_user_id && casa_id != null) {
       const { rows: membroRows } = await pool.query(
         'SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2',
