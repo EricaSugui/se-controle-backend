@@ -120,9 +120,10 @@ function centavosParaReais(cents: number): number {
 }
 
 export async function calcularAcerto(casaId: number): Promise<AcertoContas | null> {
-  const { rows: casaRows } = await pool.query('SELECT id, acerto_eixo FROM casas WHERE id = $1', [casaId]);
+  const { rows: casaRows } = await pool.query('SELECT id, acerto_eixo, usa_custeio FROM casas WHERE id = $1', [casaId]);
   if (casaRows.length === 0) return null;
   const eixoCasa: EixoAcerto = casaRows[0].acerto_eixo;
+  const usaCusteio = casaRows[0].usa_custeio !== false;
 
   const [{ rows: compras }, { rows: parcelasCaixa }, { rows: percentuais }, { rows: pagamentos }, { rows: ajustes }, { rows: membros }] =
     await Promise.all([
@@ -218,7 +219,9 @@ export async function calcularAcerto(casaId: number): Promise<AcertoContas | nul
       continue;
     }
 
-    const rateioBruto = pagadoresPorCompra.get(compra.id) ?? combinadoPorCompetencia.get(compra.competencia);
+    const rateioBruto = usaCusteio
+      ? pagadoresPorCompra.get(compra.id) ?? combinadoPorCompetencia.get(compra.competencia)
+      : [{ pessoa_id: compra.titular_id, percentual: 100 }];
     if (rateioBruto === undefined) {
       mesesSemCombinado.add(compra.competencia);
       continue;

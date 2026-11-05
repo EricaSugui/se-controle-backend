@@ -55,3 +55,14 @@ sugerir na UI o cadastro do percentual ao ver esse aviso. Já cadastrado em
 produção: JUL-26 da casa 2 (Karina 100 / Erica 0). Karina existe como
 pessoa (id 39, admin da casa 2) SEM login — quando ela criar conta, usar o
 fluxo existente `POST /auth/vincular`.
+
+## Relatório persistente
+
+Após revisar o acerto corrente, a tela solicita confirmação explícita. A
+confirmação é irreversível e envia um `Idempotency-Key` único para
+`POST /casas/:casaId/acertos`. O backend preserva um snapshot imutável.
+
+O histórico usa `GET /casas/:casaId/acertos` e o detalhe usa
+`GET /casas/:casaId/acertos/:acertoId`. PDF e CSV são regenerados com
+`GET /casas/:casaId/acertos/:acertoId/arquivo?formato=pdf|csv`; uma falha de
+geração não desfaz o acerto e permite nova tentativa.

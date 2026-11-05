@@ -30,6 +30,14 @@ paths:
             type: string
             enum: [caixa, competencia]
             default: caixa
+        - name: casa_id
+          in: query
+          required: false
+          description: >
+            Casa principal ou casa específica a exibir. A casa deve estar
+            vinculada à pessoa autenticada.
+          schema:
+            type: integer
       responses:
         "200":
           description: Resumo do dashboard

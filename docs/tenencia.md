@@ -101,7 +101,13 @@ Nenhuma empresa, app, fintech ou startup brasileira usando Tenência ou Tenê no
 
 **Fluxo entre os dois:** site institucional → botões "Entrar"/"Criar conta" → tenencia.app. App → link discreto de volta ao site.
 
-**Infra:** dois projetos na Vercel (site pode ser estático simples); backend único no Railway; DNS na Cloudflare (obrigatório pelo registrar; começar em modo "DNS only", proxy opcional no futuro). Certificados SSL: automáticos e gratuitos (Let's Encrypt via Vercel) — custo zero de HTTPS em toda a stack.
+**Infra do produto:** dois projetos na Vercel (site pode ser estático simples).
+Para produção e homologação do TCC, cada ambiente deve ter seu próprio
+frontend, backend Railway e projeto Supabase; o backend único descrito
+originalmente não é suficiente para esse isolamento. DNS na Cloudflare
+(obrigatório pelo registrar; começar em modo "DNS only", proxy opcional no
+futuro). Certificados SSL: automáticos e gratuitos (Let's Encrypt via Vercel)
+— custo zero de HTTPS em toda a stack.
 
 ---
 
