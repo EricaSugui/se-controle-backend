@@ -76,4 +76,34 @@ describe('aceite de convite', () => {
     );
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ id: 42 }));
   });
+
+  it('retorna erro orientativo ao convidar conta existente sem casa', async () => {
+    const query = pool.query as jest.Mock;
+    query
+      .mockResolvedValueOnce({ rows: [{ id: 8, supabase_user_id: 'auth-existente' }] });
+
+    const layer = (convitesRouter as unknown as {
+      stack: Array<{ route?: { path: string; methods: Record<string, boolean>; stack: Array<{ handle: (req: unknown, res: unknown, next: jest.Mock) => Promise<void> }> } }>;
+    }).stack.find((item) => item.route?.path === '/' && item.route.methods.post);
+    const handler = layer?.route?.stack[1]?.handle;
+    if (!handler) throw new Error('Rota de criação de convite não encontrada');
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+    const next = jest.fn();
+
+    await handler(
+      { body: { email: 'existente@example.com' }, usuario: { id: 1 } } as unknown,
+      res,
+      next
+    );
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      erro: 'Para convidar uma conta existente, selecione uma casa e envie o convite pela área de membros da casa',
+    });
+  });
 });
