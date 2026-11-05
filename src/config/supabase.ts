@@ -45,9 +45,9 @@ export async function findSupabaseUserByEmail(email: string): Promise<{ id: stri
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const perPage = 100;
+  const perPage = 1000;
 
-  for (let page = 1; page <= 10; page += 1) {
+  for (let page = 1; ; page += 1) {
     const url = new URL(`${baseUrl}/auth/v1/admin/users`);
     url.searchParams.set('page', String(page));
     url.searchParams.set('per_page', String(perPage));
@@ -71,5 +71,4 @@ export async function findSupabaseUserByEmail(email: string): Promise<{ id: stri
     if (users.length < perPage) return null;
   }
 
-  throw new Error('Busca por e-mail excedeu o limite de páginas do Supabase Auth');
 }
