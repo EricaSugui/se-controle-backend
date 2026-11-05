@@ -263,7 +263,7 @@ describe('criação de convites', () => {
 });
 
 describe('aceite de convite', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => jest.resetAllMocks());
 
   it('aceita notificação interna e adiciona a pessoa à casa', async () => {
     const clientQuery = jest.fn()
