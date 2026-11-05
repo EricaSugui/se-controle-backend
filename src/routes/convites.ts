@@ -39,6 +39,72 @@ router.get('/', autenticar, async (req, res, next) => {
   }
 });
 
+router.get('/recebidos', autenticar, async (req, res, next) => {
+  try {
+    const pessoaId = (req as any).usuario.id;
+    const { rows } = await pool.query(
+      `SELECT c.id, c.email, c.casa_id, c.papel, c.status, c.expires_at, c.created_at,
+              casa.nome AS casa_nome, p.nome AS convidado_por_nome
+       FROM convites c
+       JOIN pessoas destinatario ON LOWER(destinatario.email) = LOWER(c.email)
+       LEFT JOIN casas casa ON casa.id = c.casa_id
+       JOIN pessoas p ON p.id = c.convidado_por_id
+       WHERE destinatario.id = $1 AND c.status = 'pendente'
+       ORDER BY c.created_at DESC`,
+      [pessoaId]
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/recebidos/:id/aceitar', autenticar, async (req, res, next) => {
+  const pessoaId = (req as any).usuario.id;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT c.id, c.casa_id, c.papel
+       FROM convites c
+       JOIN pessoas destinatario ON LOWER(destinatario.email) = LOWER(c.email)
+       WHERE c.id = $1 AND destinatario.id = $2 AND c.status = 'pendente'
+         AND (c.expires_at IS NULL OR c.expires_at >= now())
+       FOR UPDATE`,
+      [req.params.id, pessoaId]
+    );
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ erro: 'Convite não encontrado ou expirado' });
+    }
+
+    const convite = rows[0];
+    if (convite.casa_id == null) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ erro: 'Este convite não está vinculado a uma casa' });
+    }
+
+    await client.query(
+      `INSERT INTO casa_pessoas (casa_id, pessoa_id, papel)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (casa_id, pessoa_id) DO NOTHING`,
+      [convite.casa_id, pessoaId, convite.papel || 'membro']
+    );
+    const { rows: aceito } = await client.query(
+      `UPDATE convites SET status = 'aceito'
+       WHERE id = $1 RETURNING ${SELECT_SEM_TOKEN}`,
+      [convite.id]
+    );
+    await client.query('COMMIT');
+    res.json(aceito[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
+  }
+});
+
 router.get('/token/:token', async (req, res, next) => {
   try {
     const { rows } = await pool.query('SELECT * FROM convites WHERE token = $1', [req.params.token]);
@@ -137,6 +203,22 @@ router.post('/', autenticar, async (req, res, next) => {
       return res.status(403).json({ erro: 'Apenas admins da casa podem convidar para ela' });
     }
 
+    const { rows: pessoaRows } = await pool.query(
+      `SELECT id, supabase_user_id FROM pessoas WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      [email.trim()]
+    );
+    const pessoaExistente = pessoaRows[0];
+    if (pessoaExistente?.id === pessoaId) {
+      return res.status(400).json({ erro: 'Você não pode convidar a si mesmo' });
+    }
+    if (pessoaExistente?.supabase_user_id && casa_id != null) {
+      const { rows: membroRows } = await pool.query(
+        'SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2',
+        [casa_id, pessoaExistente.id]
+      );
+      if (membroRows.length > 0) return res.status(409).json({ erro: 'Esta pessoa já participa da casa' });
+    }
+
     const token = crypto.randomBytes(32).toString('hex');
     // convidado_por_id é sempre o usuário autenticado, nunca o valor enviado pelo cliente
     const { rows } = await pool.query(
@@ -145,6 +227,11 @@ router.post('/', autenticar, async (req, res, next) => {
     );
 
     const convite = rows[0];
+    if (pessoaExistente?.supabase_user_id && casa_id != null) {
+      const { token: _token, ...conviteSemToken } = convite;
+      return res.status(201).json({ ...conviteSemToken, interno: true });
+    }
+
     const redirectTo = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/convidado?token=${token}` : undefined;
 
     const metadata: Record<string, string> = {};
