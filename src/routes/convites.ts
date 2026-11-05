@@ -86,6 +86,13 @@ router.patch('/token/:token/aceitar', async (req, res, next) => {
         );
       }
 
+      await client.query(
+        `INSERT INTO onboarding_pessoas (pessoa_id, perfil)
+         VALUES ($1, 'convidado')
+         ON CONFLICT (pessoa_id) DO UPDATE SET perfil = 'convidado', updated_at = now()`,
+        [pessoa.id]
+      );
+
       await client.query(`UPDATE convites SET status = 'aceito' WHERE id = $1`, [convite.id]);
       await client.query('COMMIT');
       res.json(pessoa);
