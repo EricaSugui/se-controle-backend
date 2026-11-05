@@ -28,9 +28,11 @@
   GET /casas/:id/acerto (conta corrente entre pessoas) + POST/DELETE de
   pagamentos/adiantamentos; eixo competência|caixa com precedência
   casa→compra. Implementa em código a regra de `regra-rateio-custeio.md`.
-  Dados de produção: Karina criada (pessoa 39, admin da casa 2, sem login)
-  e combinado JUL-26 registrado (Karina 100 / Erica 0). **Frontend
-  concluído** (PR #37 do se-controle-rn, jul/2026).
+  Dados de produção: Karina criada (pessoa 39, admin da casa 2, inicialmente
+  sem e-mail). Quando o acesso for ativado, manter `auth.users.email` e
+  `pessoas.email` sincronizados antes de usar a recuperação de senha.
+  Combinado JUL-26 registrado (Karina 100 / Erica 0). **Frontend concluído**
+  (PR #37 do se-controle-rn, jul/2026).
 - ✅ **Relatórios persistentes de acerto** — confirmação idempotente,
   snapshot imutável, histórico, detalhe, geração de PDF/CSV com nova tentativa,
   controle de acesso por casa e estornos para compras canceladas após o acerto.

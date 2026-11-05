@@ -59,12 +59,23 @@ coexistir sem dupla contagem, desde que cada compra siga exatamente um:
 - As colunas existem nas migrations atuais; no service é aplicado somente o
   "eixo efetivo" (override ou default).
 
-## Pessoa sem login (irmã): já suportado, zero desenvolvimento
+## Pessoa sem login ou com e-mail recém-definido
 
 `pessoas.supabase_user_id` e `email` são opcionais; `POST /auth/vincular`
 liga um login recém-criado a uma pessoa pré-existente. Fluxo: criar a
 pessoa da irmã agora, colocar em `casa_pessoas`, registrar o combinado em
 `percentuais_custeio` (irmã 100%); quando ela criar conta, vincular.
+
+Se a pessoa já tiver um usuário Supabase vinculado, mas estiver sem e-mail em
+`pessoas.email`, o administrador deve definir o mesmo endereço em:
+
+1. `auth.users.email`, no usuário Supabase vinculado;
+2. `pessoas.email`, na pessoa correspondente.
+
+Depois disso, a pessoa pode usar **Esqueci minha senha** para receber o link
+de recuperação no novo endereço e definir sua senha. O vínculo continua sendo
+feito por `pessoas.supabase_user_id`; o e-mail serve para autenticação,
+recuperação, convites e exibição.
 
 ## Superfície corrente
 
