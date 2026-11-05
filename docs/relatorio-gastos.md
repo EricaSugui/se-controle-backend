@@ -1,6 +1,7 @@
-# Relatório de gastos — desenho fechado (não implementado)
+# Relatório de gastos — desenho e implementação
 
-> Análise de 2026-07-25. Motivação: "para onde foi meu dinheiro" é pergunta
+> Análise de 2026-07-25. O endpoint e a tela correspondente já estão
+> implementados. Motivação: "para onde foi meu dinheiro" é pergunta
 > diferente da que o dashboard responde. Casos concretos que guiaram o
 > desenho: gastos da filha; comparar educação lançada como da Erica vs do
 > marido; oportunidades de enxugamento.

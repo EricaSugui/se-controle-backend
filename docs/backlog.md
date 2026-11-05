@@ -1,6 +1,6 @@
 # Backlog — se-controle-backend
 
-> Atualizado em 2026-07-25. Fonte da verdade dos pendentes; as decisões já
+> Atualizado em 2026-11-01. Fonte da verdade dos pendentes; as decisões já
 > tomadas estão em `decisoes-superficie-api.md`.
 
 ## Entregue recentemente
@@ -31,6 +31,9 @@
   Dados de produção: Karina criada (pessoa 39, admin da casa 2, sem login)
   e combinado JUL-26 registrado (Karina 100 / Erica 0). **Frontend
   concluído** (PR #37 do se-controle-rn, jul/2026).
+- ✅ **Relatórios persistentes de acerto** — confirmação idempotente,
+  snapshot imutável, histórico, detalhe, geração de PDF/CSV com nova tentativa,
+  controle de acesso por casa e estornos para compras canceladas após o acerto.
 
 ## Próximos candidatos
 
