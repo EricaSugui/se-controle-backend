@@ -46,6 +46,22 @@ Todo acesso a dados passa por services/ — componentes nunca chamam API diretam
 context/ guarda estado global (usuário logado, grupo familiar)
 components/ui/ é agnóstico de negócio — components/domain/ conhece o domínio
 
+## Acerto e relatórios persistentes
+
+O acerto corrente é calculado a partir das compras e dos pagamentos registrados.
+Quando o usuário confirma um acerto, o backend grava um snapshot imutável em
+`acertos`, incluindo participantes, meses, saldos e avisos. A confirmação
+exige um header `Idempotency-Key`, evitando duplicação em reenvios.
+
+Os endpoints de relatório são montados em
+`/casas/:casaId/acertos`: confirmação, listagem, detalhe e geração de PDF/CSV.
+A geração de arquivo é registrada em `acerto_arquivos` e cada tentativa gera
+um evento em `acerto_eventos`; falhas podem ser repetidas sem desfazer o
+relatório confirmado.
+
+Se uma compra já incluída em um relatório for cancelada, o backend registra um
+estorno para o próximo acerto em vez de alterar o snapshot histórico.
+
 ## Testes e desenvolvimento
 
 - **TDD é a prática preferencial para código novo e mudanças relevantes**:

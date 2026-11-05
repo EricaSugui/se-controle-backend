@@ -72,8 +72,27 @@ pessoa da irmã agora, colocar em `casa_pessoas`, registrar o combinado em
   mensais derivados e pagamentos registrados) + avisos.
 - `POST /casas/:id/acerto/pagamentos` — registra transferência
   (reembolso/adiantamento).
-- 1 migration (`acerto_pagamentos` + `acerto_eixo` em casas e compras),
-  1 service, 1 rota.
+- `DELETE /casas/:id/acerto/pagamentos/:id` — remove pagamento conforme
+  autorização.
+
+## Relatórios persistentes
+
+- `POST /casas/:id/acertos` — confirma o acerto de forma irreversível e exige
+  o header `Idempotency-Key`.
+- `GET /casas/:id/acertos` — lista relatórios confirmados para usuários
+  autorizados pela casa ou pelo snapshot.
+- `GET /casas/:id/acertos/:acertoId` — consulta o snapshot imutável.
+- `GET /casas/:id/acertos/:acertoId/arquivo?formato=pdf|csv` — gera novamente
+  um arquivo a partir do snapshot.
+
+Cada confirmação persiste o snapshot em `acertos`; repetir a mesma chave de
+idempotência não cria um segundo relatório. Gerações de PDF/CSV são
+registradas em `acerto_arquivos` e seus sucessos ou falhas em
+`acerto_eventos`. Uma falha de arquivo não desfaz o acerto e permite nova
+tentativa.
+
+Compras já incluídas em relatório não são apagadas fisicamente; seu
+cancelamento gera ajuste de estorno para o próximo acerto.
 
 ## Avisos (padrão dos avisos da projeção — guiam, não bloqueiam)
 
