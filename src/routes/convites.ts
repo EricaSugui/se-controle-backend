@@ -43,7 +43,7 @@ router.get('/recebidos', autenticar, async (req, res, next) => {
   try {
     const pessoaId = (req as any).usuario.id;
     const { rows } = await pool.query(
-      \`SELECT c.id, c.email, c.casa_id, c.papel, c.status, c.expires_at, c.created_at,
+      `SELECT c.id, c.email, c.casa_id, c.papel, c.status, c.expires_at, c.created_at,
               c.tipo, casa.nome AS casa_nome, p.nome AS convidado_por_nome
        FROM convites c
        LEFT JOIN casas casa ON casa.id = c.casa_id
@@ -59,7 +59,7 @@ router.get('/recebidos', autenticar, async (req, res, next) => {
            )
          )
          AND (c.tipo = 'interno' OR c.destinatario_pessoa_id IS NULL)
-       ORDER BY c.created_at DESC\`,
+       ORDER BY c.created_at DESC`,
       [pessoaId]
     );
     res.json(rows);
@@ -73,7 +73,7 @@ router.patch('/recebidos/:id/aceitar', autenticar, async (req, res, next) => {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      \`SELECT c.id, c.casa_id, c.papel
+      `SELECT c.id, c.casa_id, c.papel
        FROM convites c
        JOIN pessoas destinatario ON destinatario.id = $2
        WHERE c.id = $1
@@ -87,7 +87,7 @@ router.patch('/recebidos/:id/aceitar', autenticar, async (req, res, next) => {
            )
          )
          AND (c.tipo = 'interno' OR c.destinatario_pessoa_id IS NULL)
-       FOR UPDATE OF c\`,
+       FOR UPDATE OF c`,
       [req.params.id, pessoaId]
     );
     if (rows.length === 0) {
@@ -102,14 +102,14 @@ router.patch('/recebidos/:id/aceitar', autenticar, async (req, res, next) => {
     }
 
     await client.query(
-      \`INSERT INTO casa_pessoas (casa_id, pessoa_id, papel)
+      `INSERT INTO casa_pessoas (casa_id, pessoa_id, papel)
        VALUES ($1, $2, $3)
-       ON CONFLICT (casa_id, pessoa_id) DO NOTHING\`,
+       ON CONFLICT (casa_id, pessoa_id) DO NOTHING`,
       [convite.casa_id, pessoaId, convite.papel || 'membro']
     );
     const { rows: aceito } = await client.query(
-      \`UPDATE convites SET status = 'aceito'
-       WHERE id = $1 RETURNING \${SELECT_SEM_TOKEN}\`,
+      `UPDATE convites SET status = 'aceito'
+       WHERE id = $1 RETURNING ${SELECT_SEM_TOKEN}`,
       [convite.id]
     );
     await client.query('COMMIT');
@@ -146,9 +146,9 @@ router.patch('/token/:token/aceitar', async (req, res, next) => {
 
     await client.query('BEGIN');
     const { rows: conviteRows } = await client.query(
-      \`SELECT * FROM convites
+      `SELECT * FROM convites
        WHERE token = $1 AND tipo = 'email'
-       FOR UPDATE\`,
+       FOR UPDATE`,
       [req.params.token]
     );
     if (conviteRows.length === 0) {
@@ -214,19 +214,19 @@ router.patch('/token/:token/aceitar', async (req, res, next) => {
 
       if (pessoaAlvo) {
         const { rows } = await client.query(
-          \`UPDATE pessoas
+          `UPDATE pessoas
            SET supabase_user_id = $1, email = $2
            WHERE id = $3
-           RETURNING *\`,
+           RETURNING *`,
           [supabaseUser.id, supabaseUser.email.trim().toLowerCase(), pessoaAlvo.id]
         );
         pessoa = rows[0];
       } else {
         const nome = req.body.nome || convite.email.split('@')[0];
         const { rows } = await client.query(
-          \`INSERT INTO pessoas (nome, email, supabase_user_id)
+          `INSERT INTO pessoas (nome, email, supabase_user_id)
            VALUES ($1, $2, $3)
-           RETURNING *\`,
+           RETURNING *`,
           [nome, supabaseUser.email.trim().toLowerCase(), supabaseUser.id]
         );
         pessoa = rows[0];
@@ -235,17 +235,17 @@ router.patch('/token/:token/aceitar', async (req, res, next) => {
 
     if (convite.casa_id) {
       await client.query(
-        \`INSERT INTO casa_pessoas (casa_id, pessoa_id, papel)
+        `INSERT INTO casa_pessoas (casa_id, pessoa_id, papel)
          VALUES ($1, $2, $3)
-         ON CONFLICT (casa_id, pessoa_id) DO NOTHING\`,
+         ON CONFLICT (casa_id, pessoa_id) DO NOTHING`,
         [convite.casa_id, pessoa.id, convite.papel || 'membro']
       );
     }
 
     await client.query(
-      \`INSERT INTO onboarding_pessoas (pessoa_id, perfil)
+      `INSERT INTO onboarding_pessoas (pessoa_id, perfil)
        VALUES ($1, 'convidado')
-       ON CONFLICT (pessoa_id) DO UPDATE SET perfil = 'convidado', updated_at = now()\`,
+       ON CONFLICT (pessoa_id) DO UPDATE SET perfil = 'convidado', updated_at = now()`,
       [pessoa.id]
     );
 
@@ -298,10 +298,10 @@ router.post('/', autenticar, async (req, res, next) => {
     }
 
     const { rows: pessoaRows } = await pool.query(
-      \`SELECT id, email, supabase_user_id
+      `SELECT id, email, supabase_user_id
        FROM pessoas
        WHERE LOWER(email) = LOWER($1)
-       ORDER BY id\`,
+       ORDER BY id`,
       [email]
     );
     if (pessoaRows.length > 1) {
@@ -360,11 +360,11 @@ router.post('/', autenticar, async (req, res, next) => {
 
     if (usuarioAuth && pessoaExistente) {
       const { rows: pendenteRows } = await pool.query(
-        \`SELECT id FROM convites
+        `SELECT id FROM convites
          WHERE casa_id = $1
            AND (destinatario_pessoa_id = $2 OR (destinatario_pessoa_id IS NULL AND LOWER(email) = LOWER($3)))
            AND status = 'pendente'
-           AND (expires_at IS NULL OR expires_at >= now())\`,
+           AND (expires_at IS NULL OR expires_at >= now())`,
         [casa_id, pessoaExistente.id, email]
       );
       if (pendenteRows.length > 0) {
@@ -383,10 +383,10 @@ router.post('/', autenticar, async (req, res, next) => {
       if (usuarioAuth) {
         if (destinatarioPessoaId) {
           const { rows } = await client.query(
-            \`UPDATE pessoas
+            `UPDATE pessoas
              SET supabase_user_id = $1
              WHERE id = $2 AND (supabase_user_id IS NULL OR supabase_user_id = $1)
-             RETURNING id\`,
+             RETURNING id`,
             [usuarioAuth.id, destinatarioPessoaId]
           );
           if (rows.length === 0) {
@@ -394,9 +394,9 @@ router.post('/', autenticar, async (req, res, next) => {
           }
         } else {
           const { rows } = await client.query(
-            \`INSERT INTO pessoas (nome, email, supabase_user_id)
+            `INSERT INTO pessoas (nome, email, supabase_user_id)
              VALUES ($1, $2, $3)
-             RETURNING id\`,
+             RETURNING id`,
             [email.split('@')[0], email, usuarioAuth.id]
           );
           destinatarioPessoaId = rows[0].id;
@@ -404,10 +404,10 @@ router.post('/', autenticar, async (req, res, next) => {
       }
 
       const { rows } = await client.query(
-        \`INSERT INTO convites
+        `INSERT INTO convites
            (email, convidado_por_id, casa_id, papel, token, expires_at, tipo, destinatario_pessoa_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING *\`,
+         RETURNING *`,
         [email, pessoaId, orNull(casa_id), orNull(papel), token, orNull(expires_at), tipo, destinatarioPessoaId]
       );
       convite = rows[0];
@@ -425,7 +425,7 @@ router.post('/', autenticar, async (req, res, next) => {
     }
 
     const redirectTo = process.env.FRONTEND_URL
-      ? \`\${process.env.FRONTEND_URL}/convidado?token=\${token}\`
+      ? `${process.env.FRONTEND_URL}/convidado?token=${token}`
       : undefined;
     const metadata: Record<string, string> = {};
     if (casa_id) {
