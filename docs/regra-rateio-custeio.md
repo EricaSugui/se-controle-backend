@@ -16,9 +16,11 @@ Existem duas fontes de informação, com propósitos diferentes:
 Nenhuma das duas atualiza a outra automaticamente. Elas coexistem e são
 combinadas apenas na hora de **ler/calcular** um relatório.
 
-Uma casa pode desativar o rateio de custeio em sua configuração. Nesse caso,
-cada compra com meio de pagamento fica integralmente devida por quem pagou, e
-os percentuais mensais não são considerados.
+Uma casa pode desativar o rateio de custeio em sua configuração
+(`casas.usa_custeio = false`). Nesse caso, cada compra com meio de pagamento
+fica integralmente devida por quem pagou, os percentuais mensais não são
+considerados e o formulário de gastos não exibe opções de acerto para essa
+casa. A configuração é por casa, não por competência.
 
 ### Regra de prioridade
 

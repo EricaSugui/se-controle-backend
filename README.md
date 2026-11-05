@@ -35,3 +35,17 @@ atuam somente na casa fixture. Os arquivos `.env.hml` não são versionados.
 npm test
 npm run build
 ```
+
+## Migrations
+
+As migrations devem ser aplicadas em cada ambiente antes do deploy do código
+que depende delas. Para homologação:
+
+```bash
+npm run migrate:hml
+```
+
+Em produção, use o `.env.prod` do ambiente de deploy e execute
+`node-pg-migrate up`. As migrations de onboarding e casa principal são
+`1785030000005`, `1785030000006` e `1785030000007`; a última adiciona
+`casas.usa_custeio`, habilitada por padrão.
