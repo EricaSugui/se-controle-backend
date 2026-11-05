@@ -349,4 +349,59 @@ describe('aceite de convite', () => {
     }));
     expect(client.release).toHaveBeenCalled();
   });
+
+  it('cria uma pessoa nova ao aceitar convite por e-mail sem cadastro local prévio', async () => {
+    (getSupabaseUser as jest.Mock).mockResolvedValueOnce({
+      id: 'auth-novo',
+      email: 'novo@example.com',
+    });
+
+    const clientQuery = jest.fn()
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 55,
+          tipo: 'email',
+          status: 'pendente',
+          email: 'novo@example.com',
+          casa_id: 3,
+          papel: 'membro',
+          destinatario_pessoa_id: null,
+        }],
+      }) // convite
+      .mockResolvedValueOnce({ rows: [] }) // usuário ainda não vinculado
+      .mockResolvedValueOnce({ rows: [] }) // pessoa não existe por e-mail
+      .mockResolvedValueOnce({ rows: [] }) // nome disponível
+      .mockResolvedValueOnce({
+        rows: [{ id: 12, nome: 'Nova Pessoa', email: 'novo@example.com', supabase_user_id: 'auth-novo' }],
+      }) // cria pessoa
+      .mockResolvedValueOnce({}) // associação à casa
+      .mockResolvedValueOnce({}) // onboarding
+      .mockResolvedValueOnce({}) // marca convite
+      .mockResolvedValueOnce({}); // COMMIT
+    const client = makeClient(clientQuery);
+
+    const res = makeResponse();
+    const next = jest.fn();
+
+    await getHandler('/token/:token/aceitar', 'patch')(
+      {
+        params: { token: 'token-email' },
+        headers: { authorization: 'Bearer access-token' },
+        body: { nome: 'Nova Pessoa' },
+      },
+      res,
+      next
+    );
+
+    expect(next).not.toHaveBeenCalled();
+    expect(clientQuery.mock.calls[5][0]).toContain('INSERT INTO pessoas');
+    expect(clientQuery.mock.calls[5][1]).toEqual(['Nova Pessoa', 'novo@example.com', 'auth-novo']);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      id: 12,
+      supabase_user_id: 'auth-novo',
+    }));
+    expect(client.release).toHaveBeenCalled();
+  });
+
 });
