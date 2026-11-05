@@ -59,7 +59,7 @@ function makeClient(query: jest.Mock) {
 
 describe('criação de convites', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     process.env.FRONTEND_URL = 'https://app.example.com';
   });
 
@@ -112,7 +112,7 @@ describe('criação de convites', () => {
     expect(res.json.mock.calls[0][0]).not.toHaveProperty('token');
     expect(findSupabaseUserByEmail).not.toHaveBeenCalled();
     expect(inviteSupabaseUser).not.toHaveBeenCalled();
-    expect(clientQuery.mock.calls[2][0]).toContain("'interno'");
+    expect(clientQuery.mock.calls[2][1][6]).toBe('interno');
   });
 
   it('localiza conta no Supabase Auth mesmo sem pessoa previamente cadastrada', async () => {
