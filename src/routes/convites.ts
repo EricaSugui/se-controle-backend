@@ -129,7 +129,10 @@ router.patch('/recebidos/:id/aceitar', autenticar, async (req, res, next) => {
 });
 router.get('/token/:token', async (req, res, next) => {
   try {
-    const { rows } = await pool.query("SELECT * FROM convites WHERE token = $1 AND tipo = 'email'", [req.params.token]);
+    const { rows } = await pool.query(
+      "SELECT id, email, convidado_por_id, casa_id, papel, token, status, expires_at, created_at, tipo FROM convites WHERE token = $1 AND tipo = 'email'",
+      [req.params.token]
+    );
     if (rows.length === 0) return res.status(404).json({ erro: 'Convite não encontrado' });
     res.json(rows[0]);
   } catch (err) {
