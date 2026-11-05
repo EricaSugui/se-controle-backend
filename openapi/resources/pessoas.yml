@@ -143,6 +143,12 @@ schemas:
           encerramento. Opcional no PUT — omitido, mantém o atual; inválido é
           rejeitado com 400. Default na criação: America/Sao_Paulo.
         example: America/Sao_Paulo
+      casa_principal_id:
+        type: integer
+        nullable: true
+        description: >
+          No PUT, identifica a casa ativa da qual a pessoa participa que será
+          usada como contexto padrão. Omitido mantém o valor atual; null limpa.
 
   Pessoa:
     type: object
@@ -177,6 +183,10 @@ schemas:
         type: string
         description: Fuso horário IANA da pessoa. Default America/Sao_Paulo.
         example: America/Sao_Paulo
+      casa_principal_id:
+        type: integer
+        nullable: true
+        description: Casa principal escolhida pela pessoa, quando configurada.
       created_at:
         type: string
         format: date-time

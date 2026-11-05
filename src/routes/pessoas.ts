@@ -97,12 +97,24 @@ router.put('/:id', autenticar, async (req, res, next) => {
       return res.status(403).json({ erro: 'Você só pode editar seus próprios dados' });
     }
 
-    const { nome, email, fuso_horario } = req.body;
+    const { nome, email, fuso_horario, casa_principal_id } = req.body;
     if (!nome) return res.status(400).json({ erro: 'nome é obrigatório' });
 
     // fuso_horario é opcional: omitido, mantém o atual (IANA, ex: America/Manaus)
     if (fuso_horario !== undefined && fuso_horario !== null && !ehFusoValido(fuso_horario)) {
       return res.status(400).json({ erro: `fuso_horario inválido: ${fuso_horario} (use um fuso IANA, ex: America/Sao_Paulo)` });
+    }
+
+    if (casa_principal_id !== undefined && casa_principal_id !== null) {
+      const { rows: casaRows } = await pool.query(
+        `SELECT 1 FROM casa_pessoas cp
+         JOIN casas c ON c.id = cp.casa_id
+         WHERE cp.pessoa_id = $1 AND cp.casa_id = $2 AND c.ativo = true`,
+        [pessoaId, casa_principal_id]
+      );
+      if (casaRows.length === 0) {
+        return res.status(400).json({ erro: 'casa_principal_id deve ser uma casa ativa da qual você participa' });
+      }
     }
 
     // email OMITIDO mantém o atual (o replace antigo apagava sem querer);
@@ -111,9 +123,18 @@ router.put('/:id', autenticar, async (req, res, next) => {
       `UPDATE pessoas
        SET nome = $1,
            email = CASE WHEN $2 THEN $3::varchar ELSE email END,
-           fuso_horario = COALESCE($4, fuso_horario)
-       WHERE id = $5 RETURNING *`,
-      [nome, email !== undefined, orNull(email), orNull(fuso_horario), req.params.id]
+           fuso_horario = COALESCE($4, fuso_horario),
+           casa_principal_id = CASE WHEN $5 THEN $6::integer ELSE casa_principal_id END
+       WHERE id = $7 RETURNING *`,
+      [
+        nome,
+        email !== undefined,
+        orNull(email),
+        orNull(fuso_horario),
+        casa_principal_id !== undefined,
+        orNull(casa_principal_id),
+        req.params.id,
+      ]
     );
 
     if (rows.length === 0) return res.status(404).json({ erro: 'Pessoa não encontrada' });
