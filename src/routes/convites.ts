@@ -9,6 +9,12 @@ const orNull = (value: unknown) => (value === undefined ? null : value);
 
 const SELECT_SEM_TOKEN = 'id, email, convidado_por_id, casa_id, papel, status, expires_at, created_at, tipo';
 
+async function nomePessoaDisponivel(client: any, nomePreferido: string, usuarioId: string): Promise<string> {
+  const nome = nomePreferido.trim() || usuarioId;
+  const { rows } = await client.query('SELECT 1 FROM pessoas WHERE nome = $1 LIMIT 1', [nome]);
+  return rows.length > 0 ? nome + ' (' + usuarioId.slice(0, 8) + ')' : nome;
+}
+
 async function adminCasa(pessoaId: number, casaId: number): Promise<boolean> {
   const { rows } = await pool.query(
     `SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2 AND papel = 'admin'`,
@@ -222,7 +228,8 @@ router.patch('/token/:token/aceitar', async (req, res, next) => {
         );
         pessoa = rows[0];
       } else {
-        const nome = req.body.nome || convite.email.split('@')[0];
+        const nomeInformado = typeof req.body.nome === 'string' ? req.body.nome.trim() : '';
+        const nome = await nomePessoaDisponivel(client, nomeInformado || supabaseUser.email, supabaseUser.id);
         const { rows } = await client.query(
           `INSERT INTO pessoas (nome, email, supabase_user_id)
            VALUES ($1, $2, $3)
@@ -315,11 +322,15 @@ router.post('/', autenticar, async (req, res, next) => {
       return res.status(400).json({ erro: 'Você não pode convidar a si mesmo' });
     }
 
-    // O vínculo local é a primeira evidência de conta existente. Quando ainda
-    // não existe vínculo, consultamos o Supabase Auth antes de decidir enviar e-mail.
-    let usuarioAuth: { id: string; email: string } | null = pessoaExistente?.supabase_user_id
-      ? { id: pessoaExistente.supabase_user_id, email }
-      : await findSupabaseUserByEmail(email);
+    // A existência da conta é verificada no Auth. O vínculo local serve para
+    // localizar a pessoa do domínio, não para presumir que o e-mail ainda é atual.
+    const usuarioAuth = await findSupabaseUserByEmail(email);
+
+    if (pessoaExistente?.supabase_user_id && pessoaExistente.supabase_user_id !== usuarioAuth?.id) {
+      return res.status(409).json({
+        erro: 'O cadastro local está vinculado a uma conta diferente ou inexistente no Supabase para este e-mail. Revise o vínculo antes de convidar.',
+      });
+    }
 
     if (usuarioAuth && casa_id == null) {
       return res.status(400).json({
@@ -397,7 +408,7 @@ router.post('/', autenticar, async (req, res, next) => {
             `INSERT INTO pessoas (nome, email, supabase_user_id)
              VALUES ($1, $2, $3)
              RETURNING id`,
-            [email.split('@')[0], email, usuarioAuth.id]
+            [await nomePessoaDisponivel(client, usuarioAuth.nome || email, usuarioAuth.id), email, usuarioAuth.id]
           );
           destinatarioPessoaId = rows[0].id;
         }
