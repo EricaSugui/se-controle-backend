@@ -37,15 +37,17 @@ paths:
           $ref: "../components/responses.yml#/responses/NaoAutenticado"
     post:
       tags: [Convites]
-      summary: Cria um convite e envia email pelo Supabase
+      summary: Cria convite interno ou envia convite por e-mail
       description: >
-        Salva o convite no banco e aciona o Supabase para enviar um email de convite
-        ao endereço informado. O link no email redireciona ao frontend com o token
-        do convite na query string e o access_token do Supabase no fragmento (#).
-        `convidado_por_id` é sempre o usuário autenticado, ignorando qualquer
-        valor enviado no corpo. Se `casa_id` for informado, exige que o usuário
-        seja admin daquela casa; convites sem `casa_id` (auto-cadastro) podem
-        ser criados por qualquer autenticado.
+        O backend verifica primeiro se o endereço pertence a uma conta Supabase.
+        Se já existir uma conta, cria um convite interno para a pessoa receber
+        uma notificação no sistema. Caso contrário, cria o convite e solicita
+        ao Supabase o envio do e-mail de cadastro. Se o endereço já corresponder
+        a uma pessoa sem login, o aceite vincula a nova conta à pessoa existente,
+        preservando seu histórico. `convidado_por_id` é sempre o usuário
+        autenticado. Quando `casa_id` é informado, o usuário precisa ser admin
+        daquela casa; sem `casa_id`, o fluxo de convite por e-mail permanece
+        disponível para auto-cadastro.
       security:
         - bearerAuth: []
       requestBody:
@@ -56,7 +58,7 @@ paths:
               $ref: "#/schemas/ConviteInput"
       responses:
         "201":
-          description: Convite criado e email enviado (sem o campo token)
+          description: Convite interno criado ou convite por e-mail enviado (sem o campo token)
           content:
             application/json:
               schema:
@@ -67,6 +69,46 @@ paths:
           $ref: "../components/responses.yml#/responses/NaoAutenticado"
         "403":
           $ref: "../components/responses.yml#/responses/SemPermissao"
+
+
+  convites-recebidos:
+    get:
+      tags: [Convites]
+      summary: Lista convites recebidos pela pessoa autenticada
+      description: Retorna convites internos pendentes enviados para a pessoa autenticada.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Convites recebidos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/ConviteRecebido"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+
+  convites-recebidos-id-aceitar:
+    patch:
+      tags: [Convites]
+      summary: Aceita um convite interno e entra na casa
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "../components/parameters.yml#/parameters/Id"
+      responses:
+        "200":
+          description: Convite aceito
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/ConviteSemToken"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+        "404":
+          $ref: "../components/responses.yml#/responses/NaoEncontrado"
 
   convites-token-token:
     get:
@@ -90,9 +132,10 @@ paths:
       summary: Aceita um convite — fluxo completo de cadastro
       description: >
         Valida o Bearer token do Supabase, confere se o email bate com o do convite,
-        cria a pessoa no banco, vincula o supabase_user_id, adiciona à casa_pessoas
-        (se o convite tiver casa_id) e marca o convite como aceito. Tudo em uma
-        transação atômica.
+        localiza ou cria a pessoa correspondente, vincula o supabase_user_id,
+        adiciona à casa_pessoas (se o convite tiver casa_id) e marca o convite
+        como aceito. Quando já existe uma pessoa sem login, preserva seu cadastro
+        e histórico. Tudo em uma transação atômica.
       security:
         - bearerAuth: []
       parameters:
@@ -106,11 +149,11 @@ paths:
               properties:
                 nome:
                   type: string
-                  description: Nome da pessoa. Se omitido, usa o prefixo do email.
+                  description: Nome da pessoa. Se omitido, usa o e-mail como nome inicial.
                   example: Marcela
       responses:
         "200":
-          description: Convite aceito — retorna a pessoa criada
+          description: Convite aceito — retorna a pessoa vinculada à conta
           content:
             application/json:
               schema:
@@ -273,6 +316,40 @@ schemas:
       created_at:
         type: string
         format: date-time
+      tipo:
+        type: string
+        enum: [email, interno]
+
+  ConviteRecebido:
+    type: object
+    properties:
+      id:
+        type: integer
+      email:
+        type: string
+        format: email
+      casa_id:
+        type: integer
+      casa_nome:
+        type: string
+      papel:
+        type: string
+        enum: [admin, membro]
+      status:
+        type: string
+        enum: [pendente, aceito, expirado]
+      tipo:
+        type: string
+        enum: [email, interno]
+      convidado_por_nome:
+        type: string
+      expires_at:
+        type: string
+        format: date-time
+        nullable: true
+      created_at:
+        type: string
+        format: date-time
 
   ConviteSemToken:
     type: object
@@ -314,3 +391,9 @@ schemas:
       created_at:
         type: string
         format: date-time
+      tipo:
+        type: string
+        enum: [email, interno]
+      interno:
+        type: boolean
+        description: Indica que a pessoa já possui conta e receberá uma notificação no sistema.
