@@ -1,0 +1,102 @@
+paths:
+  onboarding:
+    get:
+      tags: [Onboarding]
+      summary: Consulta o estado do onboarding da pessoa autenticada
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Estado do onboarding
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Onboarding"
+    put:
+      tags: [Onboarding]
+      summary: Atualiza o estado do onboarding
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/schemas/OnboardingInput"
+      responses:
+        "200":
+          description: Estado atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Onboarding"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+
+  onboarding-dispensar:
+    post:
+      tags: [Onboarding]
+      summary: Dispensa o onboarding
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Estado dispensado
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Onboarding"
+
+  onboarding-reabrir:
+    post:
+      tags: [Onboarding]
+      summary: Reabre o onboarding desde o início
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Estado reaberto
+          content:
+            application/json:
+              schema:
+                $ref: "#/schemas/Onboarding"
+
+schemas:
+  OnboardingInput:
+    type: object
+    properties:
+      perfil:
+        type: string
+        enum: [individual, responsavel, convidado]
+      etapa_atual:
+        type: string
+        enum: [intencao, casa, essencial, primeiro_gasto, resultado]
+      status:
+        type: string
+        enum: [not_started, in_progress, dismissed, completed]
+  Onboarding:
+    type: object
+    properties:
+      pessoa_id:
+        type: integer
+      perfil:
+        type: string
+        nullable: true
+      etapa_atual:
+        type: string
+      status:
+        type: string
+      dispensado_em:
+        type: string
+        format: date-time
+        nullable: true
+      concluido_em:
+        type: string
+        format: date-time
+        nullable: true
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time

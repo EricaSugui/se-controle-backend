@@ -32,6 +32,7 @@ tags:
   - name: Dashboard
   - name: Relatórios
   - name: Fechamento Mensal
+  - name: Onboarding
 
 paths:
   /health:
@@ -40,6 +41,12 @@ paths:
     $ref: './openapi/resources/auth.yml#/paths/auth-me'
   /auth/vincular:
     $ref: './openapi/resources/auth.yml#/paths/auth-vincular'
+  /onboarding:
+    $ref: './openapi/resources/onboarding.yml#/paths/onboarding'
+  /onboarding/dispensar:
+    $ref: './openapi/resources/onboarding.yml#/paths/onboarding-dispensar'
+  /onboarding/reabrir:
+    $ref: './openapi/resources/onboarding.yml#/paths/onboarding-reabrir'
   /pessoas:
     $ref: './openapi/resources/pessoas.yml#/paths/pessoas'
   /pessoas/relacionadas:

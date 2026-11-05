@@ -25,6 +25,7 @@ import relatoriosRouter from './routes/relatorios';
 import fechamentoMensalRouter from './routes/fechamentoMensal';
 import convitesRouter from './routes/convites';
 import authRouter from './routes/auth';
+import onboardingRouter from './routes/onboarding';
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/relatorios', relatoriosRouter);
 app.use('/fechamento-mensal', fechamentoMensalRouter);
 app.use('/convites', convitesRouter);
 app.use('/auth', authRouter);
+app.use('/onboarding', onboardingRouter);
 
 app.use((err: Error & { status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
