@@ -74,6 +74,11 @@ describe('criação de convites', () => {
       }) // pessoa pelo id Supabase
       .mockResolvedValueOnce({ rows: [] }) // ainda não é membro
       .mockResolvedValueOnce({ rows: [] }); // não há convite pendente
+    (findSupabaseUserByEmail as jest.Mock).mockResolvedValueOnce({
+      id: 'auth-id',
+      email: 'existente@example.com',
+      nome: 'Pessoa Teste',
+    });
 
     const clientQuery = jest.fn()
       .mockResolvedValueOnce({}) // BEGIN
@@ -110,7 +115,7 @@ describe('criação de convites', () => {
       interno: true,
     }));
     expect(res.json.mock.calls[0][0]).not.toHaveProperty('token');
-    expect(findSupabaseUserByEmail).not.toHaveBeenCalled();
+    expect(findSupabaseUserByEmail).toHaveBeenCalledWith('existente@example.com');
     expect(inviteSupabaseUser).not.toHaveBeenCalled();
     expect(clientQuery.mock.calls[2][1][6]).toBe('interno');
   });
@@ -127,6 +132,7 @@ describe('criação de convites', () => {
 
     const clientQuery = jest.fn()
       .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [] }) // nome disponível
       .mockResolvedValueOnce({ rows: [{ id: 44 }] }) // cria pessoa vinculada
       .mockResolvedValueOnce({
         rows: [{
@@ -155,7 +161,7 @@ describe('criação de convites', () => {
     expect(next).not.toHaveBeenCalled();
     expect(findSupabaseUserByEmail).toHaveBeenCalledWith('existente@example.com');
     expect(inviteSupabaseUser).not.toHaveBeenCalled();
-    expect(clientQuery.mock.calls[1][0]).toContain('INSERT INTO pessoas');
+    expect(clientQuery.mock.calls[2][0]).toContain('INSERT INTO pessoas');
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ interno: true }));
   });
 
