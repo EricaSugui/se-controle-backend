@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: SeControle - Controle Financeiro Familiar API
   description: API para gerenciar transações, receitas, metas e cadastros de apoio do controle financeiro familiar.
-  version: "3.8.0"
+  version: "3.9.0"
 
 servers:
   - url: http://localhost:3000
@@ -171,6 +171,10 @@ paths:
     $ref: './openapi/resources/saldo-projetado.yml#/paths/saldo-projetado'
   /convites:
     $ref: './openapi/resources/convites.yml#/paths/convites'
+  /convites/recebidos:
+    $ref: './openapi/resources/convites.yml#/paths/convites-recebidos'
+  /convites/recebidos/{id}/aceitar:
+    $ref: './openapi/resources/convites.yml#/paths/convites-recebidos-id-aceitar'
   /convites/token/{token}:
     $ref: './openapi/resources/convites.yml#/paths/convites-token-token'
   /convites/token/{token}/aceitar:
