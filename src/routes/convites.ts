@@ -10,9 +10,12 @@ const orNull = (value: unknown) => (value === undefined ? null : value);
 const SELECT_SEM_TOKEN = 'id, email, convidado_por_id, casa_id, papel, status, expires_at, created_at, tipo';
 
 async function nomePessoaDisponivel(client: any, nomePreferido: string, usuarioId: string): Promise<string> {
-  const nome = nomePreferido.trim() || usuarioId;
+  const nome = (nomePreferido.trim() || usuarioId).slice(0, 100);
   const { rows } = await client.query('SELECT 1 FROM pessoas WHERE nome = $1 LIMIT 1', [nome]);
-  return rows.length > 0 ? nome + ' (' + usuarioId.slice(0, 8) + ')' : nome;
+  if (rows.length === 0) return nome;
+
+  const sufixo = ' (' + usuarioId.slice(0, 8) + ')';
+  return nome.slice(0, 100 - sufixo.length) + sufixo;
 }
 
 async function adminCasa(pessoaId: number, casaId: number): Promise<boolean> {
