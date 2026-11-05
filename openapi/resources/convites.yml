@@ -132,9 +132,10 @@ paths:
       summary: Aceita um convite — fluxo completo de cadastro
       description: >
         Valida o Bearer token do Supabase, confere se o email bate com o do convite,
-        cria a pessoa no banco, vincula o supabase_user_id, adiciona à casa_pessoas
-        (se o convite tiver casa_id) e marca o convite como aceito. Tudo em uma
-        transação atômica.
+        localiza ou cria a pessoa correspondente, vincula o supabase_user_id,
+        adiciona à casa_pessoas (se o convite tiver casa_id) e marca o convite
+        como aceito. Quando já existe uma pessoa sem login, preserva seu cadastro
+        e histórico. Tudo em uma transação atômica.
       security:
         - bearerAuth: []
       parameters:
@@ -152,7 +153,7 @@ paths:
                   example: Marcela
       responses:
         "200":
-          description: Convite aceito — retorna a pessoa criada
+          description: Convite aceito — retorna a pessoa vinculada à conta
           content:
             application/json:
               schema:
@@ -318,12 +319,6 @@ schemas:
       tipo:
         type: string
         enum: [email, interno]
-      interno:
-        type: boolean
-        description: Indica que a pessoa já possui conta e receberá uma notificação no sistema.
-      tipo:
-        type: string
-        enum: [email, interno]
 
   ConviteRecebido:
     type: object
@@ -396,3 +391,9 @@ schemas:
       created_at:
         type: string
         format: date-time
+      tipo:
+        type: string
+        enum: [email, interno]
+      interno:
+        type: boolean
+        description: Indica que a pessoa já possui conta e receberá uma notificação no sistema.
