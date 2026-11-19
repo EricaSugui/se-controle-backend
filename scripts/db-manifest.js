@@ -47,11 +47,36 @@ async function main() {
       contagens[nome] = r.n;
     }
 
+    // Contas do Auth sem pessoa do app vinculada (pessoas.supabase_user_id).
+    // Na restauração só do app, a diferença entre o backup e o banco
+    // restaurado = contas criadas depois do backup, que ficam sem dados.
+    const { rows: [orfaos] } = await client.query(`
+      SELECT CASE
+        WHEN to_regclass('auth.users') IS NULL OR to_regclass('public.pessoas') IS NULL THEN NULL
+        WHEN NOT EXISTS (SELECT 1 FROM information_schema.columns
+                         WHERE table_schema = 'public' AND table_name = 'pessoas' AND column_name = 'supabase_user_id') THEN NULL
+        ELSE (SELECT count(*)::int FROM auth.users u
+              WHERE NOT EXISTS (SELECT 1 FROM public.pessoas p WHERE p.supabase_user_id::text = u.id::text))
+      END AS n`);
+
+    // Event triggers (ex.: ensure_rls, que liga RLS em toda tabela nova).
+    // NÃO fazem parte do `supabase db dump`: a restauração precisa
+    // preservá-los e a conferência precisa compará-los.
+    const { rows: eventTriggers } = await client.query(`
+      SELECT e.evtname AS nome, e.evtevent AS evento, coalesce(e.evttags, '{}') AS tags,
+             e.evtenabled AS habilitado, n.nspname || '.' || p.proname AS funcao
+      FROM pg_event_trigger e
+      JOIN pg_proc p ON p.oid = e.evtfoid
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      ORDER BY e.evtname`);
+
     const manifesto = {
       ambiente,
       gerado_em: new Date().toISOString(),
       postgres: versao.server_version,
       ultima_migration: migracao.ultima,
+      usuarios_sem_pessoa: orfaos.n,
+      event_triggers: eventTriggers,
       tabelas: Object.keys(contagens).length,
       linhas_total: Object.values(contagens).reduce((a, b) => a + b, 0),
       contagens,
