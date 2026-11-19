@@ -62,6 +62,17 @@ relatório confirmado.
 Se uma compra já incluída em um relatório for cancelada, o backend registra um
 estorno para o próximo acerto em vez de alterar o snapshot histórico.
 
+## Convites
+
+`POST /convites` decide o tipo do convite consultando o Supabase Auth. Se o
+e-mail já tem conta, cria um convite `interno`, sem e-mail, exige `casa_id`
+e é aceito em `/convites/recebidos/:id/aceitar`. Se não tem conta, cria um
+convite `email`: o Supabase envia o e-mail e o aceite usa
+`/convites/token/:token/aceitar`. O convite guarda a pessoa destinatária em
+`destinatario_pessoa_id`. Assim o aceite vincula a conta a uma pessoa já
+existente (sem login) em vez de duplicá-la, e conflitos de cadastro
+retornam 409. Detalhes em `docs/convites.md`.
+
 ## Testes e desenvolvimento
 
 - **TDD é a prática preferencial para código novo e mudanças relevantes**:

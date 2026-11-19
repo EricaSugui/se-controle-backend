@@ -20,7 +20,8 @@ mudar. Detalhes de marca e posicionamento em `tenencia.md`.
   sempre de UMA casa. Cada casa tem seus admins e membros.
 - **Pessoa ≠ usuário** — pessoas existem sem login (uma filha criança, uma
   irmã que ainda não entrou no app) e podem ganhar login depois, sem perder
-  o histórico. Todo lançamento registra QUEM É o dono do fato (de quem é o
+  o histórico. O convite é o caminho para isso: ao ser aceito, vincula a
+  conta à pessoa já existente (ver `convites.md`). Todo lançamento registra QUEM É o dono do fato (de quem é o
   gasto) separado de QUEM registrou.
 - **Catálogos curados** — categorias (com ícone e cor), formas de pagamento
   e origens de receita são geridos centralmente, não pelos usuários; o app

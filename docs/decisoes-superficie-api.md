@@ -53,7 +53,7 @@ condicionadas a `private.admin_sistema()`
 | Percentuais de custeio | Sem PUT e sem DELETE. `POST` faz upsert por (casa, pessoa, competência), restrito a admins da casa. O histórico por competência é a forma de "editar". |
 | Casas | Sem DELETE físico — desativação lógica via `PATCH /:id/ativar` e `PATCH /:id/desativar`. |
 | Cartões/contas | Sem DELETE físico — mesmo padrão ativar/desativar. |
-| Convites | Sem DELETE — o ciclo de vida é aceitar ou expirar, via PATCH. |
+| Convites | Sem DELETE — o ciclo de vida é aceitar ou expirar, via PATCH. O tipo (`interno`/`email`) é decidido pelo backend, não pelo cliente (ver `convites.md`). |
 | Pessoas | Sem DELETE (só GET, POST e PUT). |
 | Dashboard e fechamento mensal | Somente GET — são visões calculadas, sem escrita. |
 

@@ -1,6 +1,6 @@
 # Backlog — se-controle-backend
 
-> Atualizado em 2026-11-01. Fonte da verdade dos pendentes; as decisões já
+> Atualizado em 2026-11-18. Fonte da verdade dos pendentes; as decisões já
 > tomadas estão em `decisoes-superficie-api.md`.
 
 ## Entregue recentemente
@@ -33,9 +33,40 @@
   `pessoas.email` sincronizados antes de usar a recuperação de senha.
   Combinado JUL-26 registrado (Karina 100 / Erica 0). **Frontend concluído**
   (PR #37 do se-controle-rn, jul/2026).
+- ✅ **Convites internos e por e-mail** (PR #50, contrato 3.9.x) — o
+  backend decide o tipo consultando o Supabase Auth e vincula a pessoa já
+  existente no aceite. Regras em `convites.md`.
 - ✅ **Relatórios persistentes de acerto** — confirmação idempotente,
   snapshot imutável, histórico, detalhe, geração de PDF/CSV com nova tentativa,
   controle de acesso por casa e estornos para compras canceladas após o acerto.
+
+## Pendente: separar `.env` local de `.env` prod (registrado em 2026-11-18)
+
+Hoje o `back/.env` aponta para o banco de **produção**, embora o README diga
+que ele é o ambiente local. Tudo que carrega o `.env` padrão atua em prod:
+
+- `npm run dev`, `npm start` (`src/server.ts` usa `dotenv/config`);
+- `npm run migrate:up` / `migrate:down` / `migrate:create` (o
+  node-pg-migrate lê `DATABASE_URL` do `.env`);
+- `scripts/clean-homolog-db.js` e `scripts/seed-homolog-db.js`, se rodados
+  direto com `node`, sem `npm run db:*:homolog`. Os scripts chamam
+  `require('dotenv').config()`, e só o `dotenv -e .env.hml` do npm script
+  garante que o alvo seja a HML.
+
+O que fazer:
+
+1. Renomear o `.env` atual para `.env.prod`, como o README já prevê para o
+   deploy, e criar um `.env` local de verdade (banco local ou projeto
+   Supabase de dev).
+2. Criar scripts explícitos para prod (`migrate:prod`, `start:prod` via
+   `dotenv -e .env.prod`), no mesmo padrão dos de HML.
+3. Fazer os scripts de HML recusarem rodar quando `DATABASE_URL` não for o
+   host da HML (guarda contra limpar prod por engano).
+4. Corrigir o README (seções "Desenvolvimento local" e "Migrations").
+
+Estado das migrations conferido em 2026-11-18: `1785100000000`
+(convites `tipo`/`destinatario_pessoa_id`) está aplicada em **prod** e
+**ainda não** na **HML**. Rodar `npm run migrate:hml`.
 
 ## Próximos candidatos
 
