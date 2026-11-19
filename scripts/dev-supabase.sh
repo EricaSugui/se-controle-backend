@@ -69,8 +69,15 @@ subir() {
   done
   if [ -f "$FRONT_ENV" ]; then
     echo "→ Gravando as chaves locais em ../front/.env.dev..."
-    definir_var "$FRONT_ENV" EXPO_PUBLIC_SUPABASE_URL "$API_URL"
     definir_var "$FRONT_ENV" EXPO_PUBLIC_SUPABASE_API_KEY "$ANON_KEY"
+    # Preserva a URL quando já aponta para o IP da máquina na rede (uso no
+    # celular); só preenche quando está vazia ou é localhost/127.0.0.1.
+    URL_FRONT=$(valor_var "$FRONT_ENV" EXPO_PUBLIC_SUPABASE_URL)
+    if [ -z "$URL_FRONT" ] || echo "$URL_FRONT" | grep -qE '//(127\.0\.0\.1|localhost)[:/]'; then
+      definir_var "$FRONT_ENV" EXPO_PUBLIC_SUPABASE_URL "$API_URL"
+    else
+      echo "  (EXPO_PUBLIC_SUPABASE_URL mantida: $URL_FRONT)"
+    fi
   fi
 
   echo "→ Paridade com a plataforma (ensure_rls)..."
