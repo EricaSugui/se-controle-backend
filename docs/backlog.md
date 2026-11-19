@@ -67,9 +67,18 @@ Pendências relacionadas, fora deste item:
   manual (4.7, item 5 do plano).
 - Guarda opcional `APP_ENV` (4.7, item 7 do plano).
 
-Estado das migrations conferido em 2026-11-18: `1785100000000`
-(convites `tipo`/`destinatario_pessoa_id`) está aplicada em **prod** e
-**ainda não** no **TCC** (antiga HML). Rodar `npm run migrate:tcc`.
+Estado das migrations conferido em 2026-11-19 (manifesto do backup do
+TCC): a última migration aplicada no **TCC** é `1785100000000` (convites
+`tipo`/`destinatario_pessoa_id`), a mesma de **prod**. Ambientes alinhados.
+
+## ✅ Backup e restauração (resolvido em 2026-11-19)
+
+O Supabase gratuito não faz backup. Foram criados `db:backup:prod`,
+`db:backup:tcc` e `db:restore-test` (`scripts/backup-db.sh`,
+`scripts/restore-test-db.sh`, `scripts/db-manifest.js`): dump pela CLI do
+Supabase, criptografia AES-256 e teste de restauração numa instância
+descartável, conferindo as contagens com o manifesto. Validado de ponta a
+ponta no TCC. Procedimento: `se-controle-workspace/docs/ambiente/backup-restauracao.md`.
 
 ## Próximos candidatos
 
