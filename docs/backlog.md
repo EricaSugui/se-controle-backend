@@ -40,33 +40,45 @@
   snapshot imutável, histórico, detalhe, geração de PDF/CSV com nova tentativa,
   controle de acesso por casa e estornos para compras canceladas após o acerto.
 
-## Pendente: separar `.env` local de `.env` prod (registrado em 2026-11-18)
+## ✅ Separar `.env` local de `.env` prod (resolvido em 2026-11-19)
 
-Hoje o `back/.env` aponta para o banco de **produção**, embora o README diga
-que ele é o ambiente local. Tudo que carrega o `.env` padrão atua em prod:
+Antes, o `back/.env` apontava para **produção** e era carregado
+implicitamente por `src/server.ts` (`dotenv/config`), pelo
+`node-pg-migrate` e pelos scripts de seed/clean (`require('dotenv')`).
+`npm run dev` e `npm run migrate:up` atuavam em prod.
 
-- `npm run dev`, `npm start` (`src/server.ts` usa `dotenv/config`);
-- `npm run migrate:up` / `migrate:down` / `migrate:create` (o
-  node-pg-migrate lê `DATABASE_URL` do `.env`);
-- `scripts/clean-homolog-db.js` e `scripts/seed-homolog-db.js`, se rodados
-  direto com `node`, sem `npm run db:*:homolog`. Os scripts chamam
-  `require('dotenv').config()`, e só o `dotenv -e .env.hml` do npm script
-  garante que o alvo seja a HML.
+Resolução (Fase 0, passo 1 do plano de ambientes do workspace —
+`docs/planos/estrategia-ambientes-e-roadmap-baseline-tcc.md`, 4.7):
 
-O que fazer:
+- Nenhum código carrega `.env` implicitamente. Variáveis vêm do script npm
+  (`dotenv -e .env.<ambiente>`) localmente e do Railway em produção.
+- Migrations usam `--envPath`, então o `node-pg-migrate` lê **só** o
+  arquivo do ambiente escolhido.
+- Ambientes locais: `.env.dev` (Supabase local) e `.env.tcc` (antigo
+  `.env.hml`). **Não existem scripts `:prod` locais.**
+- `.gitignore` cobre `.env*` (exceto `.env.example`).
 
-1. Renomear o `.env` atual para `.env.prod`, como o README já prevê para o
-   deploy, e criar um `.env` local de verdade (banco local ou projeto
-   Supabase de dev).
-2. Criar scripts explícitos para prod (`migrate:prod`, `start:prod` via
-   `dotenv -e .env.prod`), no mesmo padrão dos de HML.
-3. Fazer os scripts de HML recusarem rodar quando `DATABASE_URL` não for o
-   host da HML (guarda contra limpar prod por engano).
-4. Corrigir o README (seções "Desenvolvimento local" e "Migrations").
+Pendências relacionadas, fora deste item:
 
-Estado das migrations conferido em 2026-11-18: `1785100000000`
-(convites `tipo`/`destinatario_pessoa_id`) está aplicada em **prod** e
-**ainda não** na **HML**. Rodar `npm run migrate:hml`.
+- O arquivo `back/.env` (credenciais de prod) **ainda existe** na máquina
+  local por decisão de 2026-11-19. Não é mais carregado por nenhum script,
+  mas deve ser removido no passo de gestão de segredos (10.10 do plano).
+- Definir como as migrations rodam em prod: pré-deploy no Railway ou
+  manual (4.7, item 5 do plano).
+- Guarda opcional `APP_ENV` (4.7, item 7 do plano).
+
+Estado das migrations conferido em 2026-11-19 (manifesto do backup do
+TCC): a última migration aplicada no **TCC** é `1785100000000` (convites
+`tipo`/`destinatario_pessoa_id`), a mesma de **prod**. Ambientes alinhados.
+
+## ✅ Backup e restauração (resolvido em 2026-11-19)
+
+O Supabase gratuito não faz backup. Foram criados `db:backup:prod`,
+`db:backup:tcc` e `db:restore-test` (`scripts/backup-db.sh`,
+`scripts/restore-test-db.sh`, `scripts/db-manifest.js`): dump pela CLI do
+Supabase, criptografia AES-256 e teste de restauração numa instância
+descartável, conferindo as contagens com o manifesto. Validado de ponta a
+ponta no TCC. Procedimento: `se-controle-workspace/docs/ambiente/backup-restauracao.md`.
 
 ## Próximos candidatos
 

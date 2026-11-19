@@ -1,0 +1,4 @@
+# Scripts shell sempre com fim de linha LF. Com CRLF (core.autocrlf no
+# Windows), o bash falha com erros do tipo "command not found" causados
+# pelo caractere de retorno de carro no fim de cada linha.
+*.sh text eol=lf
