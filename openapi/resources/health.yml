@@ -14,3 +14,38 @@ paths:
                   status:
                     type: string
                     example: ok
+  health-db:
+    get:
+      tags: [Saúde]
+      summary: Verifica se a API alcança o banco
+      description: >
+        Executa `select 1` no banco. Usado pelo agendamento que mantém o
+        Supabase gratuito do TCC ativo e pela monitoria. Não retorna detalhes
+        de erro.
+      responses:
+        "200":
+          description: API e banco funcionando
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  banco:
+                    type: string
+                    example: ok
+        "503":
+          description: Banco indisponível
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: erro
+                  banco:
+                    type: string
+                    example: indisponivel

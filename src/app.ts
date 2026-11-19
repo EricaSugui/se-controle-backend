@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 
+import healthRouter from './routes/health';
 import pessoasRouter from './routes/pessoas';
 import casasRouter from './routes/casas';
 import casaPessoasRouter from './routes/casaPessoas';
@@ -32,9 +33,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
+app.use('/health', healthRouter);
 
 app.use('/pessoas', pessoasRouter);
 app.use('/casas', casasRouter);
