@@ -13,6 +13,10 @@ npm run dev
 O backend local usa as variáveis de `back/.env`. Nunca use credenciais de
 produção nos scripts de limpeza ou seed.
 
+> ⚠️ Hoje o `back/.env` aponta para **produção**, então `npm run dev` e
+> `npm run migrate:*` sem sufixo atuam em prod. A separação está pendente em
+> `docs/backlog.md`.
+
 ## Homologação
 
 O ambiente de homologação usa um projeto Supabase separado e o arquivo
