@@ -1,4 +1,5 @@
-require('dotenv').config();
+// Variáveis vêm do script npm (dotenv -e .env.dev | .env.tcc). Não carregar
+// `.env` aqui: ele pode apontar para produção.
 const { Client } = require('pg');
 
 const HOUSE_NAME = process.env.HML_FIXTURE_HOUSE_NAME || 'Casa Fixture HML';

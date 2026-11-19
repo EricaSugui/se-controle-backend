@@ -1,9 +1,9 @@
 node_modules/
 dist/
 openapi.bundled.yml
-.env
-.env.local
-.env.hml
+# Arquivos de ambiente: nenhum é versionado, exceto o modelo.
+.env*
+!.env.example
 package-lock.json
 .test-token
 .test-token-15
