@@ -2,36 +2,44 @@
 
 Backend Express/TypeScript do Se Controle, com PostgreSQL/Supabase.
 
-## Desenvolvimento local
+## Ambientes
+
+| Ambiente | Arquivo | Banco / Auth | Uso |
+|---|---|---|---|
+| DEV | `.env.dev` | Supabase local (`supabase start`) | Desenvolvimento |
+| TCC | `.env.tcc` | Projeto Supabase do TCC (nuvem) | Pesquisa do TCC |
+| PROD | — | Projeto Supabase de produção | Só no Railway |
+
+Crie os arquivos a partir do modelo (`cp .env.example .env.dev`). Nenhum
+`.env*` é versionado, exceto `.env.example`.
+
+**Nenhum código carrega `.env` implicitamente.** As variáveis vêm sempre do
+script npm (`dotenv -e .env.<ambiente>`, ou `--envPath` nas migrations).
+Rodar `node` direto em `src/` ou `scripts/` não carrega ambiente nenhum. Não
+existem scripts de produção locais: credenciais de produção ficam só no
+Railway.
+
+## Desenvolvimento local (DEV)
 
 ```bash
 npm install
-npm run migrate:up
+npm run migrate:up     # .env.dev
+npm run db:seed        # fixtures de teste
 npm run dev
 ```
 
-O backend local usa as variáveis de `back/.env`. Nunca use credenciais de
-produção nos scripts de limpeza ou seed.
-
-> ⚠️ Hoje o `back/.env` aponta para **produção**, então `npm run dev` e
-> `npm run migrate:*` sem sufixo atuam em prod. A separação está pendente em
-> `docs/backlog.md`.
-
-## Homologação
-
-O ambiente de homologação usa um projeto Supabase separado e o arquivo
-`.env.hml`:
+## TCC
 
 ```bash
-npm run migrate:hml
-npm run dev:hml
-npm run db:seed:homolog
-npm run db:clean:homolog
-npm run db:reset:homolog
+npm run migrate:tcc
+npm run dev:tcc
+npm run db:seed:tcc
+npm run db:clean:tcc
+npm run db:reset:tcc
 ```
 
-`db:seed:homolog` preserva fixtures reutilizáveis, e os scripts de limpeza
-atuam somente na casa fixture. Os arquivos `.env.hml` não são versionados.
+`db:seed*` preserva fixtures reutilizáveis, e os scripts de limpeza atuam
+somente na casa fixture (que não existe em produção).
 
 ## Validação
 
@@ -43,14 +51,16 @@ npm run build
 ## Migrations
 
 As migrations devem ser aplicadas em cada ambiente antes do deploy do código
-que depende delas. Para homologação:
+que depende delas:
 
 ```bash
-npm run migrate:hml
+npm run migrate:up    # DEV
+npm run migrate:tcc   # TCC
 ```
 
-Em produção, use o `.env.prod` do ambiente de deploy e execute
-`node-pg-migrate up`. As migrations de onboarding e casa principal são
+Em produção, as migrations rodam com as variáveis do Railway
+(`node-pg-migrate up`). Se é por pré-deploy no Railway ou manual ainda está
+em decisão (plano de ambientes do workspace, 4.7). Faça backup antes. As migrations de onboarding e casa principal são
 `1785030000005`, `1785030000006` e `1785030000007`; a última adiciona
 `casas.usa_custeio`, habilitada por padrão. A migration `1785100000000`
 adiciona `convites.tipo` (`email`/`interno`) e
