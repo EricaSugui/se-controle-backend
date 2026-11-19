@@ -26,6 +26,8 @@
     "db:backup:prod": "bash scripts/backup-db.sh prod",
     "db:backup:tcc": "bash scripts/backup-db.sh tcc",
     "db:restore-test": "bash scripts/restore-test-db.sh",
+    "db:restore:prod": "bash scripts/restore-db.sh prod",
+    "db:restore:tcc": "bash scripts/restore-db.sh tcc",
     "openapi:bundle": "redocly bundle openapi.yml -o openapi.bundled.yml"
   },
   "dependencies": {

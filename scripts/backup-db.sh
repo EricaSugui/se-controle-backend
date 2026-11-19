@@ -12,6 +12,8 @@
 # Saída: $BACKUP_DIR (padrão ~/se-controle-backups), FORA do repositório:
 #   <ambiente>-AAAAMMDD-HHMMSS.tar.gz.enc      (AES-256, chave derivada da senha)
 #   <ambiente>-AAAAMMDD-HHMMSS.tar.gz.enc.sha256
+# Com BACKUP_ROTULO=x o nome vira <ambiente>-x-AAAAMMDD-HHMMSS (usado pelo
+# backup de segurança da restauração; não entra no "mais recente").
 #
 # A senha do backup é pedida na hora (ou BACKUP_PASSPHRASE, para automação)
 # e deve ficar no cofre de senhas: sem ela o backup é irrecuperável.
@@ -24,27 +26,12 @@ set -euo pipefail
 
 AMBIENTE="${1:?Informe o ambiente: prod ou tcc}"
 cd "$(dirname "$0")/.."
+source scripts/lib-db.sh
 
-# Docker Desktop instalado por usuário pode não estar no PATH de terminais
-# abertos antes da instalação.
-for d in "${LOCALAPPDATA:-}/Programs/DockerDesktop/resources/bin" "/c/Program Files/Docker/Docker/resources/bin"; do
-  [ -d "$d" ] && PATH="$PATH:$d"
-done
-command -v docker >/dev/null || { echo "Docker não encontrado. Instale/abra o Docker Desktop."; exit 1; }
-docker info >/dev/null 2>&1 || { echo "Docker não está rodando. Abra o Docker Desktop e tente de novo."; exit 1; }
+preparar_docker
 command -v openssl >/dev/null || { echo "openssl não encontrado (use o Git Bash)."; exit 1; }
 
-# Ref do projeto Supabase a partir da URL (usuário do pooler "postgres.<ref>"
-# ou host "db.<ref>.supabase.co"). Usado só para comparar ambientes.
-ref_da_url() {
-  node -e '
-    const u = new URL(process.env.U);
-    const m = decodeURIComponent(u.username).match(/^postgres\.(.+)$/) || u.hostname.match(/^db\.([^.]+)\.supabase\.co$/);
-    process.stdout.write(m ? m[1] : u.hostname);
-  '
-}
-
-URL_TCC=$(node -e 'require("dotenv").config({ path: ".env.tcc", quiet: true }); process.stdout.write(process.env.DATABASE_URL || "")')
+URL_TCC=$(url_tcc)
 
 case "$AMBIENTE" in
   prod)
@@ -54,7 +41,7 @@ case "$AMBIENTE" in
     fi
     URL="$BACKUP_DATABASE_URL"
     # Guardas: não confundir PROD com TCC ou com o banco local.
-    if echo "$URL" | grep -qE '@(127\.0\.0\.1|localhost)[:/]'; then
+    if eh_url_local "$URL"; then
       echo "Essa URL é de um banco local, não de PROD."; exit 1
     fi
     if [ -n "$URL_TCC" ] && [ "$(U="$URL" ref_da_url)" = "$(U="$URL_TCC" ref_da_url)" ]; then
@@ -77,10 +64,10 @@ fi
 [ ${#BACKUP_PASSPHRASE} -ge 12 ] || { echo "Senha muito curta (mínimo 12 caracteres)."; exit 1; }
 export BACKUP_PASSPHRASE
 
-BACKUP_DIR="${BACKUP_DIR:-$HOME/se-controle-backups}"
 mkdir -p "$BACKUP_DIR"
 CARIMBO=$(date +%Y%m%d-%H%M%S)
-SAIDA="$BACKUP_DIR/${AMBIENTE}-${CARIMBO}.tar.gz.enc"
+NOME="${AMBIENTE}${BACKUP_ROTULO:+-$BACKUP_ROTULO}-${CARIMBO}"
+SAIDA="$BACKUP_DIR/${NOME}.tar.gz.enc"
 
 # Arquivos em texto claro só existem nesta pasta temporária, apagada ao sair
 # (inclusive em caso de erro).
@@ -95,7 +82,7 @@ npx supabase db dump --remote="$URL" --data-only --use-copy \
   -f "$TMP/data.sql" >/dev/null
 
 echo "→ [$AMBIENTE] Gerando manifesto (versão, última migration, contagens)..."
-DB_MANIFEST_URL="$URL" node scripts/db-manifest.js "$AMBIENTE" > "$TMP/manifest.json"
+gerar_manifesto "$URL" "$AMBIENTE" "$TMP/manifest.json"
 
 echo "→ Criptografando..."
 tar -czf - -C "$TMP" roles.sql schema.sql data.sql manifest.json \
@@ -109,6 +96,8 @@ node -e '
   console.log(`  ${m.tabelas} tabelas · ${m.linhas_total} linhas (inclui auth.users)`);
 ' "$TMP/manifest.json"
 echo "  Arquivo: $SAIDA ($(du -h "$SAIDA" | cut -f1))"
-echo
-echo "Próximos passos: guarde a senha no cofre; copie o .enc e o .sha256 para fora"
-echo "da máquina; teste a restauração com: npm run db:restore-test -- $AMBIENTE"
+if [ -z "${BACKUP_ROTULO:-}" ]; then
+  echo
+  echo "Próximos passos: guarde a senha no cofre; confira a sincronização do"
+  echo "OneDrive; teste a restauração com: npm run db:restore-test -- $AMBIENTE"
+fi

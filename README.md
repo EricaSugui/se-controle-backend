@@ -54,9 +54,19 @@ npm run db:backup:tcc                     # usa .env.tcc
 npm run db:restore-test -- prod           # testa o backup de PROD mais recente (ou: tcc | <arquivo.enc>)
 ```
 
-Faça `db:backup:prod` **antes de toda migration em produção**. Procedimento
-completo (retenção, senha, restauração real) no repositório
-`se-controle-workspace`, em `docs/ambiente/backup-restauracao.md`.
+Faça `db:backup:prod` **antes de toda migration em produção**.
+
+**Restauração real** (faz antes um backup de segurança do estado atual e
+pede confirmação digitada):
+
+```bash
+npm run db:restore:tcc                    # modo app: restaura public/private no mesmo projeto
+npm run db:restore:prod                   # idem, em produção
+npm run db:restore:prod -- --completo     # projeto perdido: restaura tudo num projeto NOVO
+```
+
+Procedimento completo (retenção, senha, cenários de restauração) no
+repositório `se-controle-workspace`, em `docs/ambiente/backup-restauracao.md`.
 
 ## Validação
 
