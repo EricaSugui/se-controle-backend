@@ -10,7 +10,8 @@ function createClient() {
   }
   return new Client({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
+    // Supabase local do DEV não aceita SSL; nuvem (TCC) usa.
+    ssl: /@(127\.0\.0\.1|localhost)[:/]/.test(process.env.DATABASE_URL) ? false : { rejectUnauthorized: false },
   });
 }
 

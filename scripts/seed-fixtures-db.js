@@ -31,7 +31,8 @@ function createClient() {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL é obrigatório para criar fixtures');
   return new Client({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
+    // Supabase local do DEV não aceita SSL; nuvem (TCC) usa.
+    ssl: /@(127\.0\.0\.1|localhost)[:/]/.test(process.env.DATABASE_URL) ? false : { rejectUnauthorized: false },
   });
 }
 
