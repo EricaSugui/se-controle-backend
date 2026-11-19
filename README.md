@@ -48,4 +48,11 @@ npm run migrate:hml
 Em produção, use o `.env.prod` do ambiente de deploy e execute
 `node-pg-migrate up`. As migrations de onboarding e casa principal são
 `1785030000005`, `1785030000006` e `1785030000007`; a última adiciona
-`casas.usa_custeio`, habilitada por padrão.
+`casas.usa_custeio`, habilitada por padrão. A migration `1785100000000`
+adiciona `convites.tipo` (`email`/`interno`) e
+`convites.destinatario_pessoa_id`; ela precisa estar aplicada antes do
+deploy do fluxo de convites internos (ver `docs/convites.md`).
+
+`POST /convites` consulta o Supabase Auth para saber se o e-mail já tem
+conta, então `SUPABASE_SERVICE_ROLE_KEY` é obrigatória em todos os
+ambientes que criam convites.
