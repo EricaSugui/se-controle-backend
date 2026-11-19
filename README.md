@@ -6,7 +6,7 @@ Backend Express/TypeScript do Se Controle, com PostgreSQL/Supabase.
 
 | Ambiente | Arquivo | Banco / Auth | Uso |
 |---|---|---|---|
-| DEV | `.env.dev` | Supabase local (`supabase start`) | Desenvolvimento |
+| DEV | `.env.dev` | Supabase local (`npm run supabase:start`) | Desenvolvimento |
 | TCC | `.env.tcc` | Projeto Supabase do TCC (nuvem) | Pesquisa do TCC |
 | PROD | — | Projeto Supabase de produção | Só no Railway |
 
@@ -21,12 +21,42 @@ Railway.
 
 ## Desenvolvimento local (DEV)
 
+Requer o **Docker Desktop** rodando. Tudo roda na sua máquina: nada
+toca o TCC nem a produção.
+
 ```bash
 npm install
-npm run migrate:up     # .env.dev
-npm run db:seed        # fixtures de teste
-npm run dev
+npm run supabase:start   # sobe o Supabase local, grava as chaves em .env.dev
+                         # (e em ../front/.env.dev), aplica migrations e fixtures
+npm run dev              # backend em http://localhost:3000
 ```
+
+No front: `npm run web`. Login de teste:
+`teste.admin@fixture.example`, com a senha em
+`HML_FIXTURE_ADMIN_PASSWORD` no `.env.dev`.
+
+| Comando | O que faz |
+|---|---|
+| `npm run supabase:start` | Sobe (ou reaproveita) o Supabase local e prepara o banco. Pode rodar de novo sem duplicar nada |
+| `npm run supabase:stop` | Para os containers **mantendo** os dados |
+| `npm run supabase:reset` | Apaga o banco local e recria do zero |
+| `npm run supabase:status` | URLs e estado |
+
+| Serviço local | Endereço |
+|---|---|
+| API do Supabase (Auth) | http://127.0.0.1:54321 |
+| Banco | `postgresql://postgres:postgres@127.0.0.1:54322/postgres` |
+| Studio (painel) | http://127.0.0.1:54323 |
+| Mailpit (e-mails de convite e do Auth) | http://127.0.0.1:54324 |
+
+O Supabase local roda só Auth e banco (mais Studio e Mailpit). As chaves
+dele são as padrão de desenvolvimento da CLI: não são segredo e não valem
+na nuvem. A configuração está em `supabase/config.toml`. O arquivo
+`supabase/paridade-plataforma.sql` recria o `ensure_rls` (RLS automático
+em tabelas novas), que na nuvem é criado pela plataforma.
+
+**No celular** (dev client ou APK `dev`): troque `localhost`/`127.0.0.1`
+pelo IP da máquina na rede nos `EXPO_PUBLIC_*` do `front/.env.dev`.
 
 ## TCC
 
