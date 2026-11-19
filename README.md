@@ -41,6 +41,23 @@ npm run db:reset:tcc
 `db:seed*` preserva fixtures reutilizáveis, e os scripts de limpeza atuam
 somente na casa fixture (que não existe em produção).
 
+## Backup e restauração
+
+O plano gratuito do Supabase não faz backup. Os backups são lógicos
+(`supabase db dump`: roles, schema e dados), **criptografados** e salvos
+fora do repositório (`~/se-controle-backups`). Exigem o Docker Desktop
+rodando.
+
+```bash
+npm run db:backup:prod                    # pede a DATABASE_URL de PROD na hora (não salva)
+npm run db:backup:tcc                     # usa .env.tcc
+npm run db:restore-test -- prod           # testa o backup de PROD mais recente (ou: tcc | <arquivo.enc>)
+```
+
+Faça `db:backup:prod` **antes de toda migration em produção**. Procedimento
+completo (retenção, senha, restauração real) no repositório
+`se-controle-workspace`, em `docs/ambiente/backup-restauracao.md`.
+
 ## Validação
 
 ```bash
