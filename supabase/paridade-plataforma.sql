@@ -1,17 +1,24 @@
 -- Paridade do DEV local com a plataforma Supabase (nuvem).
 --
--- Nos projetos da nuvem (PROD e TCC), a PLATAFORMA cria o event trigger
--- `ensure_rls`, que liga Row Level Security automaticamente em toda tabela
--- nova do schema public (inclusive as criadas por migrations). Ele não vem
--- das migrations do projeto e o Supabase local não o cria — sem este
--- arquivo, uma tabela nova teria RLS no PROD e não no DEV.
+-- Event trigger `ensure_rls`: liga Row Level Security automaticamente em
+-- toda tabela nova do schema public (inclusive as criadas por migrations).
+-- Ele não vem das migrations do projeto e o Supabase local não o cria.
 --
--- Definição copiada do PROD/TCC (função public.rls_auto_enable, igual à do
--- backup) e do guia oficial:
--- https://supabase.com/docs/guides/database/postgres/event-triggers
+-- Onde existe:
+-- - TCC: criado pela plataforma Supabase.
+-- - PROD: NÃO existia. Por isso onboarding_pessoas nasceu sem RLS (alerta
+--   rls_disabled_in_public, 22/11/2026). Este arquivo foi rodado à mão no
+--   SQL Editor de PROD em 25/11/2026; desde então o trigger está ativo.
+-- - DEV local: aplicado por `npm run supabase:start` ANTES das migrations.
 --
--- Aplicado por `npm run supabase:start` ANTES das migrations (na nuvem o
--- trigger já existia quando as migrations criaram as tabelas). Idempotente.
+-- O trigger é só uma segunda proteção. A principal é o teste
+-- src/migrations.rls.test.ts, que exige ENABLE ROW LEVEL SECURITY nas
+-- próprias migrations (o trigger esconderia a falta no DEV e no TCC).
+--
+-- Definição copiada do TCC (função public.rls_auto_enable) e do guia
+-- oficial: https://supabase.com/docs/guides/database/postgres/event-triggers
+--
+-- Idempotente: pode ser rodado de novo em qualquer ambiente.
 
 CREATE OR REPLACE FUNCTION public.rls_auto_enable() RETURNS event_trigger
     LANGUAGE plpgsql SECURITY DEFINER
