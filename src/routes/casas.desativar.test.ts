@@ -35,13 +35,14 @@ describe('desativar e reativar casa', () => {
   it('desativar expira os convites pendentes da casa', async () => {
     query
       .mockResolvedValueOnce({ rows: [{ admin: 1 }] }) // admin da casa
+      .mockResolvedValueOnce({ rows: [{ pessoal: false }] }) // não é espaço pessoal
       .mockResolvedValueOnce({ rows: [{ id: 3, ativo: false }] }) // desativa
       .mockResolvedValueOnce({ rows: [] }); // expira convites
     const res = criarRes();
 
     await getHandler('/:id/desativar')({ params: { id: '3' }, usuario: { id: 1 } }, res, jest.fn());
 
-    const [sql, params] = query.mock.calls[2];
+    const [sql, params] = query.mock.calls[3];
     expect(sql).toContain("SET status = 'expirado'");
     expect(sql).toContain("status = 'pendente'");
     expect(params).toEqual(['3']);

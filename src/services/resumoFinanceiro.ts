@@ -5,6 +5,7 @@ interface DashboardCasa {
   id: number;
   nome: string;
   usa_custeio: boolean;
+  pessoal: boolean; // espaço pessoal (Casa Pessoal)
   receitas_total: number;
   gastos_total: number;
   saldo_casa: number;
@@ -25,7 +26,7 @@ export async function calcularResumo(
   casaId?: number
 ): Promise<Dashboard> {
   const casasParams: unknown[] = [pessoaId];
-  let casasQuery = `SELECT c.id, c.nome, c.usa_custeio FROM casas c
+  let casasQuery = `SELECT c.id, c.nome, c.usa_custeio, c.pessoal FROM casas c
      JOIN casa_pessoas cp ON cp.casa_id = c.id
      WHERE c.ativo = true AND cp.pessoa_id = $1`;
   if (casaId !== undefined) {
@@ -83,6 +84,7 @@ export async function calcularResumo(
       percentual_custeio: percentual,
       minha_parte: minhaParte,
       usa_custeio: casa.usa_custeio,
+      pessoal: casa.pessoal,
     });
     minhaParteTotal += minhaParte;
   }
