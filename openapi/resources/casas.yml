@@ -3,7 +3,10 @@ paths:
     get:
       tags: [Casas]
       summary: Lista casas
-      description: Todas as casas do sistema são visíveis a qualquer usuário autenticado.
+      description: >
+        Lista as casas de que o usuário autenticado participa, incluindo o
+        espaço pessoal dele (`pessoal: true`). Casas de outras famílias e
+        espaços pessoais de outras pessoas não aparecem.
       security:
         - bearerAuth: []
       parameters:
@@ -45,7 +48,10 @@ paths:
         "401":
           $ref: "../components/responses.yml#/responses/NaoAutenticado"
         "409":
-          description: Já existe uma casa com esse nome
+          description: >
+            Já existe uma casa compartilhada com esse nome, ou o nome é
+            "Pessoal" (reservado para o espaço pessoal, sem diferenciar
+            maiúsculas e minúsculas).
           content:
             application/json:
               schema:
@@ -81,6 +87,12 @@ paths:
           $ref: "../components/responses.yml#/responses/SemPermissao"
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: O espaço pessoal tem nome fixo e não pode ser alterado.
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
 
   casas-id-ativar:
     patch:
@@ -109,7 +121,9 @@ paths:
     patch:
       tags: [Casas]
       summary: Desativa uma casa
-      description: Requer que o usuário autenticado seja admin da casa.
+      description: >
+        Requer que o usuário autenticado seja admin da casa. Os convites
+        pendentes da casa passam a `expirado`.
       security:
         - bearerAuth: []
       parameters:
@@ -127,6 +141,12 @@ paths:
           $ref: "../components/responses.yml#/responses/SemPermissao"
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: O espaço pessoal não pode ser desativado.
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
 
   casas-casaId-pessoas:
     get:
@@ -178,7 +198,9 @@ paths:
         "403":
           $ref: "../components/responses.yml#/responses/SemPermissao"
         "409":
-          description: Pessoa já associada a esta casa
+          description: >
+            Pessoa já associada a esta casa, ou a casa é um espaço pessoal
+            (só a dona participa dele).
           content:
             application/json:
               schema:
@@ -221,6 +243,12 @@ paths:
           $ref: "../components/responses.yml#/responses/SemPermissao"
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: A casa é um espaço pessoal (só a dona participa dele).
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
 
   casas-casaId-pessoas-pessoaId:
     delete:
@@ -241,6 +269,12 @@ paths:
           $ref: "../components/responses.yml#/responses/SemPermissao"
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: A casa é um espaço pessoal (só a dona participa dele).
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
 
   casas-casaId-percentual-custeio:
     get:
@@ -301,6 +335,12 @@ paths:
           $ref: "../components/responses.yml#/responses/NaoAutenticado"
         "403":
           $ref: "../components/responses.yml#/responses/SemPermissao"
+        "409":
+          description: O espaço pessoal não tem rateio (percentual de custeio).
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
 
 schemas:
   Casa:
@@ -325,6 +365,19 @@ schemas:
           na data_caixa. Compras podem sobrepor individualmente via
           compras.acerto_eixo.
         example: competencia
+      pessoal:
+        type: boolean
+        description: >
+          true para o espaço pessoal (Casa Pessoal): criado automaticamente
+          para cada pessoa com login, com um único membro (a dona, como
+          admin), nome fixo "Pessoal" e sem rateio (`usa_custeio` false).
+          Não aceita convites, membros novos, edição nem desativação.
+        example: false
+      dono_pessoa_id:
+        type: integer
+        nullable: true
+        description: Dona do espaço pessoal; null nas casas compartilhadas.
+        example: null
       created_at:
         type: string
         format: date-time

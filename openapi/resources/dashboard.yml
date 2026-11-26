@@ -60,6 +60,12 @@ schemas:
       nome:
         type: string
         example: Casa da Mamãe
+      pessoal:
+        type: boolean
+        description: >
+          true para o espaço pessoal do usuário (ver Casa.pessoal). A
+          interface mostra "Pessoal" no lugar do nome e não exibe rateio.
+        example: false
       receitas_total:
         type: number
         format: float
