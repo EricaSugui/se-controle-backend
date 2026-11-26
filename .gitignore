@@ -4,7 +4,6 @@ openapi.bundled.yml
 # Arquivos de ambiente: nenhum é versionado, exceto o modelo.
 .env*
 !.env.example
-package-lock.json
 .test-token
 .test-token-15
 .test-token-11
