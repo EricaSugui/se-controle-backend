@@ -18,6 +18,15 @@ async function nomePessoaDisponivel(client: any, nomePreferido: string, usuarioI
   return nome.slice(0, 100 - sufixo.length) + sufixo;
 }
 
+const ERRO_CASA_DESATIVADA = 'Esta casa foi desativada e não aceita novos membros';
+
+// Casa desativada (casas.ativo = false) não recebe convites nem membros novos.
+// Aceita o pool ou o client da transação.
+async function casaAtiva(db: { query: typeof pool.query }, casaId: number): Promise<boolean> {
+  const { rows } = await db.query('SELECT ativo FROM casas WHERE id = $1', [casaId]);
+  return rows.length > 0 && rows[0].ativo === true;
+}
+
 async function adminCasa(pessoaId: number, casaId: number): Promise<boolean> {
   const { rows } = await pool.query(
     `SELECT 1 FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2 AND papel = 'admin'`,
@@ -68,6 +77,8 @@ router.get('/recebidos', autenticar, async (req, res, next) => {
            )
          )
          AND (c.tipo = 'interno' OR c.destinatario_pessoa_id IS NULL)
+         -- convite para casa desativada não aparece no sino
+         AND (c.casa_id IS NULL OR casa.ativo)
        ORDER BY c.created_at DESC`,
       [pessoaId]
     );
@@ -108,6 +119,10 @@ router.patch('/recebidos/:id/aceitar', autenticar, async (req, res, next) => {
     if (convite.casa_id == null) {
       await client.query('ROLLBACK');
       return res.status(400).json({ erro: 'Este convite não está vinculado a uma casa' });
+    }
+    if (!(await casaAtiva(client, convite.casa_id))) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ erro: ERRO_CASA_DESATIVADA });
     }
 
     await client.query(
@@ -180,6 +195,10 @@ router.patch('/token/:token/aceitar', async (req, res, next) => {
     if (supabaseUser.email.trim().toLowerCase() !== String(convite.email).trim().toLowerCase()) {
       await client.query('ROLLBACK');
       return res.status(403).json({ erro: 'Email do usuário não corresponde ao convite' });
+    }
+    if (convite.casa_id && !(await casaAtiva(client, convite.casa_id))) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ erro: ERRO_CASA_DESATIVADA });
     }
 
     const { rows: pessoaPorUsuario } = await client.query(
@@ -308,6 +327,9 @@ router.post('/', autenticar, async (req, res, next) => {
 
     if (casa_id !== undefined && casa_id !== null && !(await adminCasa(pessoaId, casa_id))) {
       return res.status(403).json({ erro: 'Apenas admins da casa podem convidar para ela' });
+    }
+    if (casa_id !== undefined && casa_id !== null && !(await casaAtiva(pool, casa_id))) {
+      return res.status(409).json({ erro: ERRO_CASA_DESATIVADA });
     }
 
     const { rows: pessoaRows } = await pool.query(

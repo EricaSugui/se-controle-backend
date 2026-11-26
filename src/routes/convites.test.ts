@@ -66,6 +66,7 @@ describe('criação de convites', () => {
   it('cria notificação interna para pessoa já vinculada a usuário', async () => {
     (pool.query as jest.Mock)
       .mockResolvedValueOnce({ rows: [{ admin: 1 }] }) // admin da casa
+      .mockResolvedValueOnce({ rows: [{ ativo: true }] }) // casa ativa
       .mockResolvedValueOnce({
         rows: [{ id: 8, email: 'existente@example.com', supabase_user_id: 'auth-id' }],
       }) // pessoa pelo e-mail
@@ -123,6 +124,7 @@ describe('criação de convites', () => {
   it('localiza conta no Supabase Auth mesmo sem pessoa previamente cadastrada', async () => {
     (pool.query as jest.Mock)
       .mockResolvedValueOnce({ rows: [{ admin: 1 }] }) // admin da casa
+      .mockResolvedValueOnce({ rows: [{ ativo: true }] }) // casa ativa
       .mockResolvedValueOnce({ rows: [] }); // não há pessoa com o e-mail
     (findSupabaseUserByEmail as jest.Mock).mockResolvedValueOnce({
       id: 'auth-id',
@@ -168,6 +170,7 @@ describe('criação de convites', () => {
   it('envia convite pelo Supabase quando o e-mail não pertence a um usuário', async () => {
     (pool.query as jest.Mock)
       .mockResolvedValueOnce({ rows: [{ admin: 1 }] }) // admin da casa
+      .mockResolvedValueOnce({ rows: [{ ativo: true }] }) // casa ativa
       .mockResolvedValueOnce({ rows: [] }); // pessoa não encontrada
     (findSupabaseUserByEmail as jest.Mock).mockResolvedValueOnce(null);
 
@@ -217,6 +220,7 @@ describe('criação de convites', () => {
   it('envia e-mail e preserva pessoa sem login para vinculá-la no aceite', async () => {
     (pool.query as jest.Mock)
       .mockResolvedValueOnce({ rows: [{ admin: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ ativo: true }] }) // casa ativa
       .mockResolvedValueOnce({
         rows: [{ id: 9, email: 'familiar@example.com', supabase_user_id: null }],
       })
@@ -271,6 +275,7 @@ describe('aceite de convite', () => {
       .mockResolvedValueOnce({
         rows: [{ id: 7, casa_id: 3, papel: 'membro' }],
       }) // convite para esta pessoa
+      .mockResolvedValueOnce({ rows: [{ ativo: true }] }) // casa ativa
       .mockResolvedValueOnce({}) // associa à casa
       .mockResolvedValueOnce({
         rows: [{ id: 7, status: 'aceito', tipo: 'interno' }],
@@ -289,7 +294,7 @@ describe('aceite de convite', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(clientQuery.mock.calls[1][0]).toContain('destinatario_pessoa_id');
-    expect(clientQuery.mock.calls[2][1]).toEqual([3, 8, 'membro']);
+    expect(clientQuery.mock.calls[3][1]).toEqual([3, 8, 'membro']);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'aceito' }));
     expect(client.release).toHaveBeenCalled();
   });
@@ -313,6 +318,7 @@ describe('aceite de convite', () => {
           destinatario_pessoa_id: 9,
         }],
       }) // convite
+      .mockResolvedValueOnce({ rows: [{ ativo: true }] }) // casa ativa
       .mockResolvedValueOnce({ rows: [] }) // usuário ainda não vinculado
       .mockResolvedValueOnce({
         rows: [{ id: 9, nome: 'Familiar', email: 'familiar@example.com', supabase_user_id: null }],
@@ -340,8 +346,8 @@ describe('aceite de convite', () => {
     );
 
     expect(next).not.toHaveBeenCalled();
-    expect(clientQuery.mock.calls[4][0]).toContain('UPDATE pessoas');
-    expect(clientQuery.mock.calls[4][1]).toEqual(['auth-id', 'familiar@example.com', 9]);
+    expect(clientQuery.mock.calls[5][0]).toContain('UPDATE pessoas');
+    expect(clientQuery.mock.calls[5][1]).toEqual(['auth-id', 'familiar@example.com', 9]);
     expect(clientQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO pessoas'))).toBe(false);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       id: 9,
@@ -369,6 +375,7 @@ describe('aceite de convite', () => {
           destinatario_pessoa_id: null,
         }],
       }) // convite
+      .mockResolvedValueOnce({ rows: [{ ativo: true }] }) // casa ativa
       .mockResolvedValueOnce({ rows: [] }) // usuário ainda não vinculado
       .mockResolvedValueOnce({ rows: [] }) // pessoa não existe por e-mail
       .mockResolvedValueOnce({ rows: [] }) // nome disponível
@@ -395,8 +402,8 @@ describe('aceite de convite', () => {
     );
 
     expect(next).not.toHaveBeenCalled();
-    expect(clientQuery.mock.calls[5][0]).toContain('INSERT INTO pessoas');
-    expect(clientQuery.mock.calls[5][1]).toEqual(['Nova Pessoa', 'novo@example.com', 'auth-novo']);
+    expect(clientQuery.mock.calls[6][0]).toContain('INSERT INTO pessoas');
+    expect(clientQuery.mock.calls[6][1]).toEqual(['Nova Pessoa', 'novo@example.com', 'auth-novo']);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       id: 12,
       supabase_user_id: 'auth-novo',
@@ -404,4 +411,70 @@ describe('aceite de convite', () => {
     expect(client.release).toHaveBeenCalled();
   });
 
+});
+
+// Casa desativada não recebe convites nem membros novos (26/11/2026: a rota
+// de aceitar não conferia; limpeza das casas de teste em PROD).
+describe('convite para casa desativada', () => {
+  beforeEach(() => jest.resetAllMocks());
+
+  it('não cria convite para casa desativada', async () => {
+    (pool.query as jest.Mock)
+      .mockResolvedValueOnce({ rows: [{ admin: 1 }] }) // admin da casa
+      .mockResolvedValueOnce({ rows: [{ ativo: false }] }); // casa desativada
+    const res = makeResponse();
+
+    await getHandler('/', 'post')(
+      { body: { email: 'x@example.com', casa_id: 3 }, usuario: { id: 1 } },
+      res,
+      jest.fn()
+    );
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(findSupabaseUserByEmail).not.toHaveBeenCalled();
+  });
+
+  it('não aceita pelo sino convite de casa desativada', async () => {
+    const clientQuery = jest.fn()
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 7, casa_id: 3, papel: 'membro' }] }) // convite
+      .mockResolvedValueOnce({ rows: [{ ativo: false }] }) // casa desativada
+      .mockResolvedValueOnce({}); // ROLLBACK
+    const client = makeClient(clientQuery);
+    const res = makeResponse();
+
+    await getHandler('/recebidos/:id/aceitar', 'patch')({ params: { id: 7 }, usuario: { id: 8 } }, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(clientQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO casa_pessoas'))).toBe(false);
+    expect(client.release).toHaveBeenCalled();
+  });
+
+  it('não aceita pelo link do e-mail convite de casa desativada', async () => {
+    (getSupabaseUser as jest.Mock).mockResolvedValueOnce({ id: 'auth-id', email: 'familiar@example.com' });
+    const clientQuery = jest.fn()
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [{ id: 54, tipo: 'email', status: 'pendente', email: 'familiar@example.com', casa_id: 3, papel: 'membro' }],
+      }) // convite
+      .mockResolvedValueOnce({ rows: [{ ativo: false }] }) // casa desativada
+      .mockResolvedValueOnce({}); // ROLLBACK
+    makeClient(clientQuery);
+    const res = makeResponse();
+
+    await getHandler('/token/:token/aceitar', 'patch')(
+      { params: { token: 't' }, headers: { authorization: 'Bearer x' }, body: {} },
+      res,
+      jest.fn()
+    );
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(clientQuery.mock.calls.some(([sql]) => /INSERT INTO (pessoas|casa_pessoas)|UPDATE pessoas/.test(String(sql)))).toBe(false);
+  });
+
+  it('o sino não lista convites de casa desativada', async () => {
+    (pool.query as jest.Mock).mockResolvedValueOnce({ rows: [] });
+    await getHandler('/recebidos', 'get')({ usuario: { id: 8 } }, makeResponse(), jest.fn());
+    expect((pool.query as jest.Mock).mock.calls[0][0]).toContain('casa.ativo');
+  });
 });
