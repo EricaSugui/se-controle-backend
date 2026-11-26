@@ -67,6 +67,7 @@ describe('criação de convites', () => {
     (pool.query as jest.Mock)
       .mockResolvedValueOnce({ rows: [{ admin: 1 }] }) // admin da casa
       .mockResolvedValueOnce({ rows: [{ ativo: true }] }) // casa ativa
+      .mockResolvedValueOnce({ rows: [{ pessoal: false }] }) // não é espaço pessoal
       .mockResolvedValueOnce({
         rows: [{ id: 8, email: 'existente@example.com', supabase_user_id: 'auth-id' }],
       }) // pessoa pelo e-mail
@@ -125,6 +126,7 @@ describe('criação de convites', () => {
     (pool.query as jest.Mock)
       .mockResolvedValueOnce({ rows: [{ admin: 1 }] }) // admin da casa
       .mockResolvedValueOnce({ rows: [{ ativo: true }] }) // casa ativa
+      .mockResolvedValueOnce({ rows: [{ pessoal: false }] }) // não é espaço pessoal
       .mockResolvedValueOnce({ rows: [] }); // não há pessoa com o e-mail
     (findSupabaseUserByEmail as jest.Mock).mockResolvedValueOnce({
       id: 'auth-id',
@@ -171,6 +173,7 @@ describe('criação de convites', () => {
     (pool.query as jest.Mock)
       .mockResolvedValueOnce({ rows: [{ admin: 1 }] }) // admin da casa
       .mockResolvedValueOnce({ rows: [{ ativo: true }] }) // casa ativa
+      .mockResolvedValueOnce({ rows: [{ pessoal: false }] }) // não é espaço pessoal
       .mockResolvedValueOnce({ rows: [] }); // pessoa não encontrada
     (findSupabaseUserByEmail as jest.Mock).mockResolvedValueOnce(null);
 
@@ -221,6 +224,7 @@ describe('criação de convites', () => {
     (pool.query as jest.Mock)
       .mockResolvedValueOnce({ rows: [{ admin: 1 }] })
       .mockResolvedValueOnce({ rows: [{ ativo: true }] }) // casa ativa
+      .mockResolvedValueOnce({ rows: [{ pessoal: false }] }) // não é espaço pessoal
       .mockResolvedValueOnce({
         rows: [{ id: 9, email: 'familiar@example.com', supabase_user_id: null }],
       })
@@ -329,6 +333,8 @@ describe('aceite de convite', () => {
       .mockResolvedValueOnce({}) // associação à casa
       .mockResolvedValueOnce({}) // onboarding
       .mockResolvedValueOnce({}) // marca convite
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] }) // cria o espaço pessoal
+      .mockResolvedValueOnce({}) // dona no espaço pessoal
       .mockResolvedValueOnce({}); // COMMIT
     const client = makeClient(clientQuery);
 
@@ -385,6 +391,8 @@ describe('aceite de convite', () => {
       .mockResolvedValueOnce({}) // associação à casa
       .mockResolvedValueOnce({}) // onboarding
       .mockResolvedValueOnce({}) // marca convite
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] }) // cria o espaço pessoal
+      .mockResolvedValueOnce({}) // dona no espaço pessoal
       .mockResolvedValueOnce({}); // COMMIT
     const client = makeClient(clientQuery);
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
+import { ERRO_CASA_PESSOAL, NOME_CASA_PESSOAL, ehCasaPessoal } from '../services/casaPessoal';
 
 const router = Router();
 
@@ -15,12 +16,15 @@ async function adminCasa(pessoaId: number, casaId: string): Promise<boolean> {
 router.get('/', autenticar, async (req, res, next) => {
   try {
     const { ativo } = req.query;
-    const params: unknown[] = [];
-    let query = 'SELECT * FROM casas';
+    // Só as casas de que a pessoa participa. Antes listava todas as casas do
+    // sistema para qualquer usuário logado (nomes de outras famílias e, com
+    // o espaço pessoal, as Casas Pessoais dos outros).
+    const params: unknown[] = [(req as any).usuario.id];
+    let query = 'SELECT * FROM casas WHERE id IN (SELECT casa_id FROM casa_pessoas WHERE pessoa_id = $1)';
 
     if (ativo !== undefined) {
       params.push(ativo === 'true');
-      query += ' WHERE ativo = $1';
+      query += ` AND ativo = $${params.length}`;
     }
 
     query += ' ORDER BY nome';
@@ -36,6 +40,11 @@ router.post('/', autenticar, async (req, res, next) => {
     const pessoaId = (req as any).usuario.id;
     const { nome } = req.body;
     if (!nome) return res.status(400).json({ erro: 'nome é obrigatório' });
+    // "Pessoal" é o nome do espaço pessoal; uma casa compartilhada com o
+    // mesmo nome confundiria os seletores
+    if (String(nome).trim().toLowerCase() === NOME_CASA_PESSOAL.toLowerCase()) {
+      return res.status(409).json({ erro: 'Esse nome é reservado. Escolha outro nome para a casa.' });
+    }
 
     const client = await pool.connect();
     try {
@@ -72,6 +81,8 @@ router.put('/:id', autenticar, async (req, res, next) => {
     if (!(await adminCasa(pessoaId, req.params.id))) {
       return res.status(403).json({ erro: 'Apenas admins da casa podem editá-la' });
     }
+    // o espaço pessoal tem nome fixo e não tem rateio
+    if (await ehCasaPessoal(pool, req.params.id)) return res.status(409).json({ erro: ERRO_CASA_PESSOAL });
 
     const { nome, acerto_eixo, usa_custeio } = req.body;
     if (!nome) return res.status(400).json({ erro: 'nome é obrigatório' });
@@ -100,6 +111,10 @@ async function setAtivo(req: any, res: any, next: any, ativo: boolean) {
     const pessoaId = req.usuario.id;
     if (!(await adminCasa(pessoaId, req.params.id))) {
       return res.status(403).json({ erro: 'Apenas admins da casa podem ativá-la/desativá-la' });
+    }
+    // o espaço pessoal não é desativado
+    if (!ativo && (await ehCasaPessoal(pool, req.params.id))) {
+      return res.status(409).json({ erro: ERRO_CASA_PESSOAL });
     }
 
     const { rows } = await pool.query('UPDATE casas SET ativo = $1 WHERE id = $2 RETURNING *', [ativo, req.params.id]);

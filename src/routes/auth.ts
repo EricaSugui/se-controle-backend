@@ -2,11 +2,19 @@ import { Router } from 'express';
 import { getSupabaseUser } from '../config/supabase';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
+import { garantirCasaPessoal } from '../services/casaPessoal';
 
 const router = Router();
 
-router.get('/me', autenticar, (req, res) => {
-  res.json((req as any).usuario);
+router.get('/me', autenticar, async (req, res, next) => {
+  try {
+    // Rede de segurança: quem tem login e ainda não tem espaço pessoal ganha
+    // o seu aqui (o app chama /auth/me ao abrir). Idempotente.
+    await garantirCasaPessoal(pool, (req as any).usuario.id);
+    res.json((req as any).usuario);
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post('/vincular', async (req, res, next) => {
@@ -37,6 +45,8 @@ router.post('/vincular', async (req, res, next) => {
 
     if (rows.length === 0) return res.status(404).json({ erro: 'Pessoa não encontrada ou já vinculada a outro usuário' });
 
+    // a pessoa passou a ter login: ganha o espaço pessoal
+    await garantirCasaPessoal(pool, rows[0].id);
     res.json(rows[0]);
   } catch (err) {
     next(err);

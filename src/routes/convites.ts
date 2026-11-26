@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import pool from '../db';
 import { getSupabaseUser, inviteSupabaseUser, findSupabaseUserByEmail } from '../config/supabase';
 import { autenticar } from '../middleware/auth';
+import { ERRO_CASA_PESSOAL, ehCasaPessoal, garantirCasaPessoal } from '../services/casaPessoal';
 
 const router = Router();
 const orNull = (value: unknown) => (value === undefined ? null : value);
@@ -285,6 +286,8 @@ router.patch('/token/:token/aceitar', async (req, res, next) => {
       "UPDATE convites SET status = 'aceito' WHERE id = $1",
       [convite.id]
     );
+    // a pessoa acabou de ter login (nova ou vinculada): ganha o espaço pessoal
+    await garantirCasaPessoal(client, pessoa.id);
     await client.query('COMMIT');
     res.json(pessoa);
   } catch (err) {
@@ -330,6 +333,10 @@ router.post('/', autenticar, async (req, res, next) => {
     }
     if (casa_id !== undefined && casa_id !== null && !(await casaAtiva(pool, casa_id))) {
       return res.status(409).json({ erro: ERRO_CASA_DESATIVADA });
+    }
+    // o espaço pessoal não recebe convites
+    if (casa_id !== undefined && casa_id !== null && (await ehCasaPessoal(pool, casa_id))) {
+      return res.status(409).json({ erro: ERRO_CASA_PESSOAL });
     }
 
     const { rows: pessoaRows } = await pool.query(

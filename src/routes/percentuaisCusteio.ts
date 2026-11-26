@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
+import { ERRO_CASA_PESSOAL, ehCasaPessoal } from '../services/casaPessoal';
 import { ehCompetenciaValida } from '../utils/competencia';
 
 const router = Router({ mergeParams: true });
@@ -58,6 +59,8 @@ router.post('/', autenticar, async (req, res, next) => {
     if (!(await adminCasa(pessoaId, casaId))) {
       return res.status(403).json({ erro: 'Apenas admins da casa podem definir percentuais de custeio' });
     }
+    // o espaço pessoal não tem rateio
+    if (await ehCasaPessoal(pool, casaId)) return res.status(409).json({ erro: ERRO_CASA_PESSOAL });
 
     const { pessoa_id, competencia, percentual } = req.body;
 

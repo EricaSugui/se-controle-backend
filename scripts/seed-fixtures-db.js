@@ -126,10 +126,31 @@ async function main() {
       people.push({ ...fixture, pessoaId: result.rows[0].id });
     }
 
+    // Espaço pessoal (Casa Pessoal) de cada fixture com login. Mesma lógica
+    // de garantirCasaPessoal (src/services/casaPessoal.ts), idempotente.
+    for (const person of people) {
+      const pessoal = await client.query(
+        `INSERT INTO casas (nome, pessoal, dono_pessoa_id, usa_custeio)
+         VALUES ('Pessoal', true, $1, false)
+         ON CONFLICT (dono_pessoa_id) WHERE pessoal DO NOTHING
+         RETURNING id`,
+        [person.pessoaId],
+      );
+      if (pessoal.rows.length > 0) {
+        await client.query(
+          `INSERT INTO casa_pessoas (casa_id, pessoa_id, papel) VALUES ($1, $2, 'admin')
+           ON CONFLICT (casa_id, pessoa_id) DO NOTHING`,
+          [pessoal.rows[0].id, person.pessoaId],
+        );
+      }
+    }
+
+    // O nome é único só entre as Casas compartilhadas (as pessoais se chamam
+    // todas "Pessoal"): o ON CONFLICT precisa do mesmo predicado do índice.
     const houseResult = await client.query(
       `INSERT INTO casas (nome)
        VALUES ($1)
-       ON CONFLICT (nome) DO UPDATE SET ativo = true
+       ON CONFLICT (nome) WHERE NOT pessoal DO UPDATE SET ativo = true
        RETURNING id`,
       [HOUSE_NAME],
     );
