@@ -64,6 +64,47 @@ paths:
         "403":
           $ref: "../components/responses.yml#/responses/SemPermissao"
 
+  compras-caixa:
+    get:
+      tags: [Compras]
+      summary: Lista as parcelas que saem do caixa num período (visão de caixa)
+      description: >
+        Visão de caixa da lista de despesas. Retorna uma linha por PARCELA cuja
+        `data_caixa` (vencimento da fatura no cartão de crédito, ou a data
+        própria da parcela) esteja entre `de` e `ate`, com os dados da compra
+        de origem. Apenas compras de casas das quais o usuário é membro. O app
+        mostra cada parcela pela data da compra, como a fatura do cartão.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: de
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Início do período (inclusive), AAAA-MM-DD.
+        - name: ate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Fim do período (inclusive), AAAA-MM-DD.
+      responses:
+        "200":
+          description: Parcelas do período
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/schemas/ParcelaCaixa"
+        "400":
+          $ref: "../components/responses.yml#/responses/ErroValidacao"
+        "401":
+          $ref: "../components/responses.yml#/responses/NaoAutenticado"
+
   compras-id:
     get:
       tags: [Compras]
@@ -477,6 +518,78 @@ schemas:
       created_at:
         type: string
         format: date-time
+
+  ParcelaCaixa:
+    type: object
+    description: >
+      Uma parcela na visão de caixa (GET /compras/caixa), com os dados da
+      compra de origem. Somente leitura.
+    properties:
+      parcela_id:
+        type: integer
+        example: 31
+      compra_id:
+        type: integer
+        example: 9
+      numero_parcela:
+        type: integer
+        example: 2
+      total_parcelas:
+        type: integer
+        example: 3
+      valor:
+        type: number
+        format: float
+        description: Valor desta parcela.
+        example: 400.00
+      data_caixa:
+        type: string
+        format: date
+        description: Data efetiva de saída — vencimento da fatura, quando há, ou a data própria da parcela.
+        example: "2026-11-10"
+      fatura_id:
+        type: integer
+        nullable: true
+      casa_id:
+        type: integer
+      pessoa_id:
+        type: integer
+      categoria_id:
+        type: integer
+      descricao:
+        type: string
+        nullable: true
+        example: Geladeira
+      cartao_conta_id:
+        type: integer
+        nullable: true
+      data:
+        type: string
+        format: date
+        description: Data da compra.
+        example: "2026-10-15"
+      competencia:
+        type: string
+        description: Competência da compra (MMM-AA).
+        example: OUT-26
+      despesa_fixa_id:
+        type: integer
+        nullable: true
+      competencia_referencia:
+        type: string
+        nullable: true
+      pessoa_nome:
+        type: string
+        nullable: true
+      categoria_nome:
+        type: string
+        nullable: true
+      cartao_conta_nome:
+        type: string
+        nullable: true
+      pode_editar:
+        type: boolean
+        description: Verdadeiro se o usuário registrou a compra ou é admin na casa dela.
 
   CompraPagadorInput:
     type: object
