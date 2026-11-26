@@ -104,6 +104,14 @@ async function setAtivo(req: any, res: any, next: any, ativo: boolean) {
 
     const { rows } = await pool.query('UPDATE casas SET ativo = $1 WHERE id = $2 RETURNING *', [ativo, req.params.id]);
     if (rows.length === 0) return res.status(404).json({ erro: 'Casa não encontrada' });
+    // Ao desativar, os convites pendentes da casa expiram: ninguém entra
+    // numa casa desativada. Reativar não ressuscita convites.
+    if (!ativo) {
+      await pool.query(
+        "UPDATE convites SET status = 'expirado' WHERE casa_id = $1 AND status = 'pendente'",
+        [req.params.id]
+      );
+    }
     res.json(rows[0]);
   } catch (err) {
     next(err);
