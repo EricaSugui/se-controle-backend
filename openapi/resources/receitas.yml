@@ -18,6 +18,22 @@ paths:
           schema:
             type: integer
           description: Filtra as receitas vinculadas a uma receita fixa (histórico de recebimentos do contrato).
+        - name: de
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: >
+            Visão de caixa: receitas com `data` >= este valor (AAAA-MM-DD).
+            Receitas sem data ficam de fora.
+        - name: ate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: "Visão de caixa: receitas com `data` <= este valor (AAAA-MM-DD)."
       responses:
         "200":
           description: Lista de receitas
