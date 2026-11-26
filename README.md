@@ -105,6 +105,14 @@ npm test
 npm run build
 ```
 
+O CI (`.github/workflows/ci.yml`) roda `npm ci`, `tsc --noEmit` e `npm test`
+a cada PR e push para `develop` e `main`, sem banco nem segredos. O
+`package-lock.json` é versionado: o CI e o Railway instalam as versões dele.
+
+Ao trocar de branch com `npm run dev` rodando, reinicie o servidor: o
+`ts-node-dev` pode reiniciar no meio da troca e ficar com código antigo
+(uma rota nova pode cair em `/:id` e responder 500).
+
 ## Migrations
 
 As migrations devem ser aplicadas em cada ambiente antes do deploy do código
@@ -115,9 +123,17 @@ npm run migrate:up    # DEV
 npm run migrate:tcc   # TCC
 ```
 
-Em produção, as migrations rodam com as variáveis do Railway
-(`node-pg-migrate up`). Se é por pré-deploy no Railway ou manual ainda está
-em decisão (plano de ambientes do workspace, 4.7). Faça backup antes. As migrations de onboarding e casa principal são
+Em produção, as migrations são **manuais** (decidido em 19/11/2026; o
+Railway não tem pré-deploy): `npm run db:backup:prod` antes, depois
+`npx node-pg-migrate up` com a `DATABASE_URL` de PROD colada na hora, sem
+`--envPath` e sem salvar em arquivo (primeiro com `--dry-run`). O merge em
+`main` faz deploy automático, então a migration vem **antes** do merge e
+precisa ser compatível com o código antigo. Passo a passo no roteiro de
+release do workspace (`se-controle-workspace`, `docs/ambiente/release.md`).
+Toda tabela nova precisa de `ENABLE ROW LEVEL SECURITY` na própria
+migration (`src/migrations.rls.test.ts` falha se faltar).
+
+Histórico: as migrations de onboarding e casa principal são
 `1785030000005`, `1785030000006` e `1785030000007`; a última adiciona
 `casas.usa_custeio`, habilitada por padrão. A migration `1785100000000`
 adiciona `convites.tipo` (`email`/`interno`) e
