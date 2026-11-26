@@ -1,0 +1,43 @@
+# CI mínimo: tipos e testes a cada PR para develop e main.
+#
+# Plano de ambientes, Fase 0, passo 12 (seção 4.6, item 2). Não usa banco
+# nem segredos: os testes mockam o banco, e o teste de RLS
+# (src/migrations.rls.test.ts) lê as migrations.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testes:
+    name: Tipos e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Checar tipos
+        run: npx tsc --noEmit
+
+      - name: Testes
+        run: npm test
