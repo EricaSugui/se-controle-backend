@@ -227,6 +227,43 @@ router.get('/', autenticar, async (req, res, next) => {
   }
 });
 
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+// Visão de caixa da lista de despesas: as PARCELAS que saem do caixa entre
+// `de` e `ate` (data_caixa = vencimento da fatura no cartão de crédito, ou a
+// data própria da parcela), com os dados da compra de origem. A lista mostra
+// cada parcela pela data da compra, como a fatura do cartão nos apps de banco.
+// Registrada antes de '/:id', senão "caixa" seria lido como um id.
+router.get('/caixa', autenticar, async (req, res, next) => {
+  try {
+    const { de, ate } = req.query;
+    if (typeof de !== 'string' || typeof ate !== 'string' || !DATA_ISO.test(de) || !DATA_ISO.test(ate)) {
+      return res.status(400).json({ erro: 'de e ate são obrigatórios, no formato AAAA-MM-DD' });
+    }
+    const pessoaId = (req as any).usuario.id;
+    const { rows } = await pool.query(
+      `SELECT pc.id AS parcela_id, pc.compra_id, pc.numero_parcela, c.total_parcelas,
+              pc.valor, pc.data_caixa, pc.fatura_id,
+              c.casa_id, c.pessoa_id, c.categoria_id, c.descricao, c.cartao_conta_id,
+              c.data, c.competencia, c.despesa_fixa_id, c.competencia_referencia,
+              p.nome AS pessoa_nome, cat.nome AS categoria_nome, cc.nome AS cartao_conta_nome,
+              ${podeEditarExpr(1)}
+       FROM parcelas_com_caixa pc
+       JOIN compras c ON c.id = pc.compra_id
+       LEFT JOIN pessoas p ON p.id = c.pessoa_id
+       LEFT JOIN categorias cat ON cat.id = c.categoria_id
+       LEFT JOIN cartoes_contas cc ON cc.id = c.cartao_conta_id
+       WHERE c.casa_id IN (SELECT casa_id FROM casa_pessoas WHERE pessoa_id = $1)
+         AND pc.data_caixa BETWEEN $2 AND $3
+       ORDER BY c.data DESC, pc.compra_id DESC, pc.numero_parcela`,
+      [pessoaId, de, ate]
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/:id', autenticar, async (req, res, next) => {
   try {
     const pessoaId = (req as any).usuario.id;

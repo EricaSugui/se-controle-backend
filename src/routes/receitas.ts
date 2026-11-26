@@ -103,7 +103,14 @@ function podeEditarExpr(paramIndex: number): string {
 
 router.get('/', autenticar, async (req, res, next) => {
   try {
-    const { competencia, receita_fixa_id } = req.query;
+    const { competencia, receita_fixa_id, de, ate } = req.query;
+    // Visão de caixa da lista de receitas: o que entrou entre `de` e `ate`
+    // (pela data do recebimento). Receitas sem data ficam de fora.
+    for (const [nome, valor] of [['de', de], ['ate', ate]] as const) {
+      if (valor !== undefined && (typeof valor !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(valor))) {
+        return res.status(400).json({ erro: `${nome} deve estar no formato AAAA-MM-DD` });
+      }
+    }
     const pessoaId = (req as any).usuario.id;
     const params: unknown[] = [pessoaId];
     let query = `
@@ -122,6 +129,16 @@ router.get('/', autenticar, async (req, res, next) => {
     if (receita_fixa_id !== undefined) {
       params.push(receita_fixa_id);
       query += ` AND r.receita_fixa_id = $${params.length}`;
+    }
+
+    if (de !== undefined) {
+      params.push(de);
+      query += ` AND r.data >= $${params.length}`;
+    }
+
+    if (ate !== undefined) {
+      params.push(ate);
+      query += ` AND r.data <= $${params.length}`;
     }
 
     query += ' ORDER BY r.data';
