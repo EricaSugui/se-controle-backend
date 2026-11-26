@@ -19,6 +19,10 @@ export interface ItemStatusDespesaFixa {
   competencia: string;
   data_esperada: string;
   status: StatusDespesaFixa;
+  // Só quando 'pago': o que foi lançado para a ocorrência (compras vinculadas).
+  realizado_em: string | null; // data do lançamento mais recente
+  valor_realizado: number | null; // soma das compras vinculadas
+  lancamentos: number; // quantas compras vinculadas (0 se não paga)
 }
 
 export const FOLGA_DIAS_PADRAO = 3;
@@ -75,11 +79,19 @@ export async function calcularStatusDespesasFixas(
   );
   if (despesas.length === 0) return [];
 
+  // Por ocorrência paga: data do lançamento mais recente, soma e quantidade
+  // (mais de um lançamento por ocorrência é aceito: decisão em aberto 6).
   const { rows: pagas } = await pool.query(
-    'SELECT DISTINCT despesa_fixa_id, competencia_referencia FROM compras WHERE despesa_fixa_id = ANY($1)',
+    `SELECT c.despesa_fixa_id, c.competencia_referencia,
+            MAX(c.data)::text AS realizado_em, SUM(t.total) AS valor_realizado,
+            COUNT(*)::int AS lancamentos
+     FROM compras c
+     JOIN (SELECT compra_id, SUM(valor) AS total FROM parcelas GROUP BY compra_id) t ON t.compra_id = c.id
+     WHERE c.despesa_fixa_id = ANY($1)
+     GROUP BY c.despesa_fixa_id, c.competencia_referencia`,
     [despesas.map((d) => d.id)]
   );
-  const pagasSet = new Set(pagas.map((p) => `${p.despesa_fixa_id}|${p.competencia_referencia}`));
+  const pagasMap = new Map(pagas.map((p) => [`${p.despesa_fixa_id}|${p.competencia_referencia}`, p]));
 
   const { rows: excecoes } = await pool.query(
     'SELECT despesa_fixa_id, competencia_referencia FROM despesa_fixa_excecoes WHERE despesa_fixa_id = ANY($1)',
@@ -99,7 +111,8 @@ export async function calcularStatusDespesasFixas(
       const competencia = adicionarMesesCompetencia(competenciaInicio, meses);
       if (opcoes.competencia !== undefined && competencia !== opcoes.competencia) continue;
 
-      const paga = pagasSet.has(`${despesa.id}|${competencia}`);
+      const realizado = pagasMap.get(`${despesa.id}|${competencia}`);
+      const paga = realizado !== undefined;
       const justificada = !paga && excecoesSet.has(`${despesa.id}|${competencia}`);
       // sem filtro: só em aberto — pago e justificado estão resolvidos
       if ((paga || justificada) && opcoes.competencia === undefined) continue;
@@ -125,6 +138,9 @@ export async function calcularStatusDespesasFixas(
         competencia,
         data_esperada: dataEsperada,
         status,
+        realizado_em: realizado?.realizado_em ?? null,
+        valor_realizado: realizado ? Number(realizado.valor_realizado) : null,
+        lancamentos: realizado?.lancamentos ?? 0,
       });
     }
   }
