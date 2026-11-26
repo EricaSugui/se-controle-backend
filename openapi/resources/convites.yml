@@ -85,7 +85,9 @@ paths:
             Conflito de cadastro: mais de uma pessoa com o mesmo e-mail; pessoa
             local vinculada a outra conta (ou a uma conta inexistente) no
             Supabase; e-mail e conta vinculados a pessoas diferentes; pessoa
-            já participa da casa; ou já existe convite pendente para ela na casa.
+            já participa da casa; já existe convite pendente para ela na casa;
+            a casa está desativada; ou a casa é um espaço pessoal (que não
+            aceita convites).
           content:
             application/json:
               schema:
@@ -145,6 +147,12 @@ paths:
           $ref: "../components/responses.yml#/responses/NaoAutenticado"
         "404":
           $ref: "../components/responses.yml#/responses/NaoEncontrado"
+        "409":
+          description: A casa do convite foi desativada e não aceita novos membros.
+          content:
+            application/json:
+              schema:
+                $ref: "../components/common-schemas.yml#/schemas/Erro"
 
   convites-token-token:
     get:
@@ -214,8 +222,8 @@ paths:
         "409":
           description: >
             Convite já utilizado ou expirado; usuário já vinculado a outra
-            pessoa; mais de uma pessoa com o e-mail; ou e-mail já vinculado a
-            outra conta.
+            pessoa; mais de uma pessoa com o e-mail; e-mail já vinculado a
+            outra conta; ou a casa do convite foi desativada.
           content:
             application/json:
               schema:

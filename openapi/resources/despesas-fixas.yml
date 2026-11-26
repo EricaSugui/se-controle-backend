@@ -598,3 +598,19 @@ schemas:
           lista "em aberto" e aparece na visão por competência. Se há
           pagamento, ele vence: a exceção vira só anotação e o status é pago.
         example: em_atraso
+      realizado_em:
+        type: string
+        format: date
+        nullable: true
+        description: Só quando pago — data da compra vinculada mais recente.
+        example: "2026-07-10"
+      valor_realizado:
+        type: number
+        format: float
+        nullable: true
+        description: Só quando pago — soma das compras vinculadas à ocorrência.
+        example: 129.90
+      lancamentos:
+        type: integer
+        description: Quantas compras estão vinculadas à ocorrência (0 se não paga).
+        example: 1

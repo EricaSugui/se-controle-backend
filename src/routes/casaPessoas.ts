@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../db';
 import { autenticar } from '../middleware/auth';
+import { ERRO_CASA_PESSOAL, ehCasaPessoal } from '../services/casaPessoal';
 
 const router = Router({ mergeParams: true });
 
@@ -49,6 +50,7 @@ router.post('/', autenticar, async (req, res, next) => {
     if (!(await adminCasa(pessoaId, casaId))) {
       return res.status(403).json({ erro: 'Apenas admins da casa podem adicionar pessoas' });
     }
+    if (await ehCasaPessoal(pool, casaId)) return res.status(409).json({ erro: ERRO_CASA_PESSOAL });
 
     const { pessoa_id, papel } = req.body;
     if (!pessoa_id) return res.status(400).json({ erro: 'pessoa_id é obrigatório' });
@@ -73,6 +75,7 @@ router.patch('/:pessoaId/papel', autenticar, async (req, res, next) => {
     if (!(await adminCasa(pessoaId, casaId))) {
       return res.status(403).json({ erro: 'Apenas admins da casa podem alterar papéis' });
     }
+    if (await ehCasaPessoal(pool, casaId)) return res.status(409).json({ erro: ERRO_CASA_PESSOAL });
 
     const { papel } = req.body;
     if (papel !== 'admin' && papel !== 'membro') return res.status(400).json({ erro: "papel deve ser 'admin' ou 'membro'" });
@@ -96,6 +99,7 @@ router.delete('/:pessoaId', autenticar, async (req, res, next) => {
     if (!(await adminCasa(pessoaId, casaId))) {
       return res.status(403).json({ erro: 'Apenas admins da casa podem remover pessoas' });
     }
+    if (await ehCasaPessoal(pool, casaId)) return res.status(409).json({ erro: ERRO_CASA_PESSOAL });
 
     const { rows } = await pool.query(
       'DELETE FROM casa_pessoas WHERE casa_id = $1 AND pessoa_id = $2 RETURNING id',

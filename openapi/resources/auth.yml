@@ -3,6 +3,9 @@ paths:
     get:
       tags: [Autenticação]
       summary: Retorna a pessoa vinculada ao token atual
+      description: >
+        Também garante o espaço pessoal (Casa Pessoal) da pessoa: se ela
+        ainda não tiver, ele é criado nesta chamada (idempotente).
       security:
         - bearerAuth: []
       responses:
