@@ -604,3 +604,19 @@ schemas:
           competência. Se há recebimento, ele vence: a exceção vira só
           anotação e o status é recebido.
         example: atrasado
+      realizado_em:
+        type: string
+        format: date
+        nullable: true
+        description: Só quando recebido — data da receita vinculada mais recente (nula se a receita não tem data).
+        example: "2026-07-05"
+      valor_realizado:
+        type: number
+        format: float
+        nullable: true
+        description: Só quando recebido — soma dos valores líquidos vinculados à ocorrência.
+        example: 4800.00
+      lancamentos:
+        type: integer
+        description: Quantas receitas estão vinculadas à ocorrência (0 se não recebida).
+        example: 1

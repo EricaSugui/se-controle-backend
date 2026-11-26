@@ -21,6 +21,10 @@ export interface ItemStatusReceitaFixa {
   competencia: string;
   data_esperada: string;
   status: StatusReceitaFixa;
+  // Só quando 'recebido': o que foi lançado para a ocorrência.
+  realizado_em: string | null; // data do recebimento mais recente (pode faltar)
+  valor_realizado: number | null; // soma dos valores líquidos vinculados
+  lancamentos: number; // quantas receitas vinculadas (0 se não recebida)
 }
 
 export const FOLGA_DIAS_PADRAO = 3;
@@ -76,11 +80,17 @@ export async function calcularStatusReceitasFixas(
   );
   if (receitasFixas.length === 0) return [];
 
+  // Por ocorrência recebida: data mais recente, soma e quantidade.
   const { rows: recebidas } = await pool.query(
-    'SELECT DISTINCT receita_fixa_id, competencia_referencia FROM receitas WHERE receita_fixa_id = ANY($1)',
+    `SELECT r.receita_fixa_id, r.competencia_referencia,
+            MAX(r.data)::text AS realizado_em, SUM(r.valor_liquido) AS valor_realizado,
+            COUNT(*)::int AS lancamentos
+     FROM receitas r
+     WHERE r.receita_fixa_id = ANY($1)
+     GROUP BY r.receita_fixa_id, r.competencia_referencia`,
     [receitasFixas.map((r) => r.id)]
   );
-  const recebidasSet = new Set(recebidas.map((r) => `${r.receita_fixa_id}|${r.competencia_referencia}`));
+  const recebidasMap = new Map(recebidas.map((r) => [`${r.receita_fixa_id}|${r.competencia_referencia}`, r]));
 
   const { rows: excecoes } = await pool.query(
     'SELECT receita_fixa_id, competencia_referencia FROM receita_fixa_excecoes WHERE receita_fixa_id = ANY($1)',
@@ -100,7 +110,8 @@ export async function calcularStatusReceitasFixas(
       const competencia = adicionarMesesCompetencia(competenciaInicio, meses);
       if (opcoes.competencia !== undefined && competencia !== opcoes.competencia) continue;
 
-      const recebida = recebidasSet.has(`${receitaFixa.id}|${competencia}`);
+      const realizado = recebidasMap.get(`${receitaFixa.id}|${competencia}`);
+      const recebida = realizado !== undefined;
       const justificada = !recebida && excecoesSet.has(`${receitaFixa.id}|${competencia}`);
       // sem filtro: só em aberto — recebido e justificado estão resolvidos
       if ((recebida || justificada) && opcoes.competencia === undefined) continue;
@@ -125,6 +136,9 @@ export async function calcularStatusReceitasFixas(
         competencia,
         data_esperada: dataEsperada,
         status,
+        realizado_em: realizado?.realizado_em ?? null,
+        valor_realizado: realizado ? Number(realizado.valor_realizado) : null,
+        lancamentos: realizado?.lancamentos ?? 0,
       });
     }
   }
