@@ -374,3 +374,32 @@ recalcular todos os hashes dela (e a cabeça), a verificação acusou
    repetições.
 4. O volume de 100.000 eventos ainda não rodou (cerca de 2 minutos de
    carga por rodada, pela escala observada).
+
+### Teste com 100.000 eventos (27/11/2026)
+
+Um par A e B, semente 1, mesmo código e ambiente do piloto (commit
+`a303c2e`, tag `tcc-baseline-v1`), com o Supabase local do DEV parado.
+
+| | A | B | B/A |
+|---|---|---|---|
+| Operações | 37.894 | 37.894 | — |
+| Tempo de carga | 111,2 s | 127,4 s | 1,15 |
+| Latência mediana / p95 | 2,54 / 6,25 ms | 2,88 / 7,13 ms | 1,14 / 1,14 |
+| Bytes por evento | 549 | 715 | 1,30 |
+| Verificação | — | 630 ms (leitura 368, cálculo 262) | — |
+| Ataques detectados | 0 de 120 | 110 de 120 | — |
+
+- Sem falso positivo; os 240 ataques com o resultado esperado.
+- **Sem degradação ao longo da carga**: a razão B/A das medianas por
+  décimo das operações ficou entre 1,06 e 1,18, sem tendência. A
+  atualização da cabeça da cadeia a cada evento (versões mortas até o
+  autovacuum) não deixou B progressivamente mais lenta.
+- Com 37.894 operações, o custo de B na latência (cerca de +14%) aparece
+  de forma estável dentro da rodada; a variação **entre** repetições
+  segue a ser medida na coleta principal.
+- Verificação linear no volume: cerca de 6,3 µs por evento (contra 10 µs
+  em 10.000, onde o custo fixo por Casa pesa mais).
+- Armazenamento: o acréscimo de B converge para cerca de 30% (42% em
+  1.000, 32% em 10.000, 30% em 100.000).
+- Viabilidade: uma rodada de 100.000 leva cerca de 2 minutos de carga
+  (mais os ataques), o que permite várias repetições na coleta principal.
