@@ -37,7 +37,9 @@
     "exp:ambiente": "node experimento/scripts/ambiente.js",
     "exp:parar": "docker compose -f experimento/docker-compose.yml down -v",
     "exp:test": "bash experimento/scripts/testar.sh",
-    "exp:typecheck": "tsc -p experimento/tsconfig.json"
+    "exp:typecheck": "tsc -p experimento/tsconfig.json",
+    "exp:checkpoint": "ts-node --transpile-only -P experimento/tsconfig.json experimento/src/cli.ts checkpoint",
+    "exp:verificar": "ts-node --transpile-only -P experimento/tsconfig.json experimento/src/cli.ts verificar"
   },
   "dependencies": {
     "cors": "^2.8.5",

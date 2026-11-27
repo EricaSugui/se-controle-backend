@@ -182,3 +182,78 @@ Levantados ao conferir a rota de edição de compras do produto
   reconstitui pelo `compra_id` no conteúdo do evento. Levar isso em conta
   ao montar os cenários de adulteração de valor (escolher o evento-alvo e
   descrever o resultado esperado).
+
+## Bloco 3: checkpoint e verificador (27/11/2026)
+
+**O que foi feito**
+
+- **Checkpoint** (`src/checkpoint.ts`): para cada Casa, o índice do
+  último evento confirmado, o hash esperado nesse índice e a quantidade
+  de eventos até ele, num arquivo JSON da rodada (formato `v1`). É criado
+  a partir de `audit.cadeias`, lido numa transação `REPEATABLE READ READ
+  ONLY` (fotografia consistente). Antes de gravar, confere que o evento
+  da cabeça existe com o mesmo hash e que a quantidade bate; se não, o
+  checkpoint não é criado.
+- **Verificador** (`src/verificador.ts`), em Node: lê os eventos de cada
+  Casa do checkpoint em texto bruto e percorre os índices de 1 até o do
+  checkpoint. Não confia em `audit.cadeias` nem nas funções SQL de hash.
+  Para cada índice confere, nesta ordem:
+  1. **sequência**: exatamente um evento com aquele índice (falta =
+     exclusão; repetição = inserção);
+  2. **encadeamento**: `hash_anterior` igual ao hash do evento anterior
+     (hash inicial de 64 zeros no índice 1);
+  3. **hash**: SHA-256 recalculado em Node igual ao gravado.
+
+  No fim, confere a **quantidade** de eventos até o checkpoint e se o
+  **hash final** é igual ao do checkpoint.
+- **Situação por Casa** (definição de método, revista em 27/11):
+  - **íntegra**: todas as conferências passaram;
+  - **adulterada**: alguma falhou, com o motivo (`sequencia`,
+    `encadeamento`, `hash`, `quantidade` ou `checkpoint`) e o primeiro
+    índice com problema;
+  - **inconclusiva**: o verificador **não conseguiu processar** os eventos
+    (por exemplo, evento sem índice ou campo num formato que a
+    serialização recusa). O roteiro dava como exemplo "Casa do checkpoint
+    sem nenhum evento"; isso foi reclassificado como **adulterada**
+    (exclusão total, detectada como `sequencia` no índice 1), porque o
+    checkpoint prova que os eventos existiam.
+  - Eventos com índice acima do checkpoint são contados como **não
+    protegidos**, sem afetar a situação.
+  - A situação geral da verificação é a pior entre as Casas.
+- **Medição embutida**: tempo de leitura e de cálculo por Casa e tempo
+  total (`process.hrtime`).
+- **Linha de comando** (`src/cli.ts`): `npm run exp:checkpoint --
+  <arquivo>` e `npm run exp:verificar -- <checkpoint> [relatorio.json]`,
+  com código de saída 0 (íntegra), 1 (adulterada) ou 2 (inconclusiva).
+
+**Achado de método:** na **alteração seguida do recálculo dos hashes
+posteriores**, a cadeia fica coerente e só o hash final denuncia o
+ataque (motivo `checkpoint`). O verificador detecta, mas **não localiza**
+o evento alterado: aponta o índice do checkpoint. Localizar exigiria
+checkpoints intermediários, o que fica registrado como limitação (e
+possível trabalho futuro).
+
+**Testes** (`npm run exp:test`): 48 testes no total; em A, 27 executados
+(a suíte do verificador é exclusiva de B); em B, 47 executados, todos
+passando em 27/11/2026. Os ataques rodam numa transação desfeita no fim,
+na mesma conexão do verificador. Cobrem: nenhum falso positivo em todas
+as cadeias do banco (com dados próprios de 4 Casas, incluindo alteração,
+exclusão e receita sem responsável); cadeia íntegra; eventos depois do
+checkpoint como não protegidos; alteração de valor, de responsável, de
+usuário registrador, de timestamp e de operação (motivo `hash`, no índice
+certo); exclusão de um evento do meio, do último (com a cabeça ajustada) e
+de todos (`sequencia`); inserção com índice repetido, com a constraint
+derrubada (`sequencia`); inserção no meio com renumeração e recálculo
+(`checkpoint`); alteração com recálculo dos posteriores (`checkpoint`);
+alteração só do `hash_anterior` (`encadeamento`); o verificador ignora
+`audit.cadeias` adulterada; o checkpoint recusa cabeça incoerente;
+gravação e leitura do arquivo e recusa de outro formato.
+
+Um teste dependia de dados criados por outro arquivo e falhou quando o
+Jest mudou a ordem dos arquivos; passou a criar os próprios dados.
+
+**Prova de ponta a ponta pela linha de comando** (banco B depois dos
+testes): checkpoint de 34 Casas e 225 eventos; verificação íntegra em
+56,6 ms (código 0). Depois de alterar o primeiro evento da Casa 1 e
+recalcular todos os hashes dela (e a cabeça), a verificação acusou
+`adulterada (checkpoint)` no índice 7 (código 1).
