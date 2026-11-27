@@ -53,3 +53,53 @@ O plano e as decisões de desenho ficam no workspace, em
   com o contêiner pelo WSL 2).
 - Não usar o `src/db.ts` do produto no verificador: ele converte
   `numeric` em `float` (bloco 1).
+
+## Bloco 1: modelo de evento e serialização (27/11/2026)
+
+**O que foi feito**
+
+- Tabela `audit.eventos` (`sql/10-audit-comum.sql`), comum às duas
+  condições: `id` (identidade, só técnico), `casa_id`, `indice`,
+  `operacao` (`INSERT`, `UPDATE` ou `DELETE`), `entidade` (`compras`,
+  `parcelas` ou `receitas`), `entidade_id`, `pessoa_responsavel_id`
+  (opcional), `usuario_registrador_id`, `ocorrido_em` (`timestamptz`,
+  padrão `clock_timestamp()`), `conteudo` (`jsonb` com `antes` e
+  `depois`), `hash_anterior` e `hash`. FKs para `casas` e `pessoas`, CHECK
+  da operação e da entidade, e `(casa_id, indice)` único.
+- **Condição A** (`sql/20-condicao-a.sql`): uma constraint garante que
+  `indice`, `hash_anterior` e `hash` fiquem nulos. O índice na cadeia foi
+  tratado como parte do encadeamento, e não do log básico: assim, A não
+  paga o bloqueio da cabeça da cadeia, e a diferença medida entre A e B
+  inclui tudo o que a hash chain acrescenta (bloqueio, índice e hash).
+- **Condição B** (`sql/20-condicao-b.sql`): as três colunas passam a ser
+  obrigatórias, e a tabela `audit.cadeias` (`casa_id`, `ultimo_indice`,
+  `ultimo_hash`) guarda a cabeça de cada cadeia. O verificador não confia
+  nela: compara com o checkpoint externo.
+- **Serialização canônica, versão `v1`**: dez campos em ordem fixa
+  (versão do formato, `casa_id`, `indice`, `operacao`, `entidade`,
+  `entidade_id`, `pessoa_responsavel_id`, `usuario_registrador_id`,
+  `ocorrido_em`, `conteudo`), cada um como `tamanho:valor,` (tamanho em
+  bytes UTF-8), e nulo como `~`. Ficaram de fora o `id` (técnico; a
+  ordem é o `indice`) e o próprio encadeamento, que entra no hash.
+  Datas em UTC, `YYYY-MM-DDTHH:MI:SS.ffffffZ`, sempre com 6 casas. O
+  `conteudo` entra como o texto do `jsonb` gerado pelo Postgres (chaves
+  em ordem canônica do `jsonb`; `numeric(12,2)` mantém as 2 casas, por
+  exemplo `10.00`).
+- **Hash**: `SHA-256(hash_anterior || serialização)` em hexadecimal
+  minúsculo, com `sha256()` nativo do Postgres e `crypto` do Node; hash
+  inicial de 64 zeros.
+- **Duas implementações**: PL/pgSQL (`audit.serializar`,
+  `audit.hash_evento`) e TypeScript (`src/serializacao.ts`). A conexão do
+  experimento (`src/banco.ts`) recebe todos os tipos como o texto enviado
+  pelo Postgres, sem conversão, e fixa a sessão em UTC; a versão em Node
+  serializa esse texto.
+
+**Testes** (`npm run exp:test`, que recria o banco na condição B): 17
+testes, todos passando em 27/11/2026, em cerca de 2 s depois da
+recriação. Sete vetores fixos (inclusão comum; nulos e microssegundos
+zerados; texto com acento, `:`, `,` e `~`; emoji de 4 bytes;
+`numeric(12,2)` com e sem centavos; virada do ano registrada em -03;
+JSON com chaves fora de ordem, aninhamento, lista e nulo) dão a mesma
+serialização e o mesmo hash nos dois lados. Dois vetores têm a
+serialização esperada escrita à mão (formato congelado), e o hash é
+conferido nos dois lados com o vetor oficial `SHA-256("abc")` do NIST.
