@@ -284,3 +284,93 @@ recalcular todos os hashes dela (e a cabeça), a verificação acusou
   diagrama muda.
 - Pendente da autora até 13/12: confirmar a definição de "inconclusiva"
   (bloco 3) antes do piloto.
+
+## Piloto (27/11/2026)
+
+**Como foi feito**
+
+- Código: commit `a303c2e` da `pesquisa/hashchain`, sem alterações
+  pendentes, nas 12 rodadas (conferido nos `ambiente.json`). Mesmo
+  ambiente do bloco 0: Postgres 17.12, 4 CPUs, 4 GB. Supabase local do DEV
+  parado durante as rodadas.
+- **Gerador** (`src/gerador.ts`), com semente fixa: 12 pessoas, cada uma
+  com o seu espaço pessoal, 4 Casas compartilhadas com 2 a 4 membros, 5
+  categorias e 2 despesas fixas por Casa. 60% das inclusões caem em Casas
+  compartilhadas. Mistura de operações (suposição declarada, sem dados
+  reais de uso): inserir compra 35%, inserir receita 20%, editar compra
+  15% (atualiza a compra e recria as parcelas, como o produto), editar
+  receita 8%, vincular/trocar/desvincular recorrência 7%, cancelar compra
+  5%, apagar receita 4%, apagar compra (parcelas em cascata) 3%, mudar de
+  Casa 3%. Parcelas: 70% à vista, o resto de 2 a 12 vezes. O plano fecha
+  em exatamente N eventos (a última operação que passaria do alvo vira
+  uma inclusão de receita, 1 evento). Mesma semente, mesmo plano em A e
+  em B.
+- **Carga** (`src/carga.ts`): uma conexão, uma operação por transação,
+  em sequência. Latência de escrita = do `BEGIN` ao fim do `COMMIT`,
+  medida no cliente com `process.hrtime`. Vazão = operações (ou eventos)
+  pelo tempo total da carga.
+- **Armazenamento**: `pg_total_relation_size` de `audit.eventos` (tabela,
+  índices e TOAST) mais `audit.cadeias` em B, depois de `VACUUM (ANALYZE)`
+  nas tabelas de auditoria.
+- **Verificação** (só B): checkpoint de todas as Casas logo depois da
+  carga e verificação completa em seguida.
+- **Cenários** (`src/cenarios.ts`): as 12 variantes da Tabela 3, cada uma
+  com 10 alvos sorteados (semente derivada da semente da rodada), 120
+  ataques por rodada, cada um numa transação desfeita no fim. Os ids dos
+  eventos são os mesmos em A e em B, então os alvos são idênticos
+  (conferido).
+- **Desenho do piloto** (`npm run exp:piloto`): A e B × 1.000 e 10.000
+  eventos × sementes 1, 2 e 3 (pareadas), com a ordem A/B alternada a cada
+  semente. 12 rodadas; resumo em `resultados/2026-11-27-piloto/resumo.csv`
+  (cópia no workspace).
+
+**Resultados**
+
+| Volume | Semente | Latência mediana A / B (ms) | B/A | p95 A / B (ms) | Bytes por evento A / B | B/A | Verificação B | Detectados A / B |
+|---|---|---|---|---|---|---|---|---|
+| 1.000 | 1 | 2,83 / 3,15 | 1,11 | 6,43 / 7,67 | 631 / 893 | 1,42 | 30 ms | 0 / 110 de 120 |
+| 1.000 | 2 | 3,10 / 3,23 | 1,04 | 6,51 / 7,26 | 623 / 868 | 1,39 | 26 ms | 0 / 110 de 120 |
+| 1.000 | 3 | 3,15 / 3,30 | 1,05 | 7,61 / 7,19 | 614 / 868 | 1,41 | 28 ms | 0 / 110 de 120 |
+| 10.000 | 1 | 2,74 / 2,91 | 1,06 | 6,60 / 6,89 | 557 / 733 | 1,32 | 94 ms | 0 / 110 de 120 |
+| 10.000 | 2 | 2,49 / 2,69 | 1,08 | 6,17 / 6,92 | 557 / 734 | 1,32 | 115 ms | 0 / 110 de 120 |
+| 10.000 | 3 | 3,20 / 3,05 | 0,95 | 7,47 / 7,69 | 555 / 735 | 1,32 | 85 ms | 0 / 110 de 120 |
+
+- **Correção funcional**: todas as rodadas sem erro, com exatamente N
+  eventos; **nenhum falso positivo** nas verificações completas de B; os
+  1.440 ataques (12 rodadas × 120) tiveram o resultado esperado.
+- **Detecção (H1)**: em B, as 11 variantes protegidas foram detectadas
+  em 100% das tentativas, com o motivo esperado; a inserção depois do
+  checkpoint, em 0%, como previsto (não protegida). Em A, nenhuma
+  detecção e nenhum ataque barrado por constraint.
+- **Armazenamento (H2)**: B ocupa cerca de **32% a mais** com 10.000
+  eventos e 39% a 42% a mais com 1.000 (a parte fixa pesa mais em volume
+  pequeno). Variação entre sementes muito pequena.
+- **Verificação (H2)**: 26 a 30 ms com 1.000 eventos e 85 a 115 ms com
+  10.000 (cerca de 10 µs por evento em 10.000; o custo fixo de uma consulta
+  por Casa pesa mais em 1.000).
+- **Latência (H2)**: a razão B/A das medianas ficou entre 0,95 e 1,11
+  (cerca de +5%), mas a **variação entre repetições** da mesma condição é
+  do mesmo tamanho ou maior: coeficiente de variação das medianas entre
+  sementes de 5,7% (A, 1.000), 2,3% (B, 1.000), 12,8% (A, 10.000) e 6,2%
+  (B, 10.000). Com 3 repetições, o efeito na latência **não se distingue
+  do ruído**.
+- **Aquecimento**: as primeiras 100 operações de cada rodada têm mediana
+  5% a 15% maior que o restante.
+- Uma rodada de teste anterior, com o Supabase local do DEV ligado, deu
+  mediana de 6,65 ms em A e 4,87 ms em B (o dobro do piloto, e com A mais
+  lenta): o ruído do ambiente supera o efeito medido. Daí a regra de
+  desligar o DEV nas rodadas.
+
+**Consequências para a coleta principal** (a decidir antes dela)
+
+1. **Descartar o aquecimento** da estatística de latência (por exemplo,
+   as primeiras 100 operações) ou rodar uma carga de aquecimento antes.
+2. **Mais repetições** para a latência: com coeficiente de variação de
+   até 13% entre repetições e efeito de cerca de 5%, 3 repetições não
+   bastam. Estimar o número a partir destes dados (por exemplo, 10 ou
+   mais por célula) e relatar a razão B/A pareada por semente com
+   intervalo de confiança.
+3. Armazenamento, verificação e detecção já são estáveis com 3
+   repetições.
+4. O volume de 100.000 eventos ainda não rodou (cerca de 2 minutos de
+   carga por rodada, pela escala observada).
