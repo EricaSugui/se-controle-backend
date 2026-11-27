@@ -1,0 +1,42 @@
+# Banco de medição do experimento do TCC (hash chain).
+#
+# Separado do Supabase local do DEV: só o Postgres, sem outros serviços,
+# com CPU e memória fixas para que as rodadas sejam comparáveis.
+# Recriado do zero a cada rodada por scripts/recriar-banco.sh.
+#
+# Os valores aqui são parâmetros do método: ao mudar qualquer um, anotar
+# em NOTAS.md (o ambiente.json de cada rodada também os registra).
+
+name: se-controle-experimento
+
+services:
+  medicao:
+    # Versão fixa (não "17"), para que todas as rodadas usem o mesmo binário.
+    image: postgres:17.12
+    container_name: se-controle-experimento-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: experimento
+      POSTGRES_DB: experimento
+      # Datas do servidor em UTC (decisão 3: serialização em UTC).
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      # 55432: fora das faixas do Supabase local (543xx) e do restore-test (544xx).
+      - "127.0.0.1:55432:5432"
+    cpus: 4
+    mem_limit: 4g
+    shm_size: 256m
+    healthcheck:
+      # Por TCP (-h 127.0.0.1): durante a inicialização, a imagem sobe um
+      # servidor temporário só no socket; testar pelo socket daria "pronto"
+      # antes da hora.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d experimento"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - dados:/var/lib/postgresql/data
+
+volumes:
+  dados:

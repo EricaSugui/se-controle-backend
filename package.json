@@ -32,7 +32,10 @@
     "db:restore-test": "bash scripts/restore-test-db.sh",
     "db:restore:prod": "bash scripts/restore-db.sh prod",
     "db:restore:tcc": "bash scripts/restore-db.sh tcc",
-    "openapi:bundle": "redocly bundle openapi.yml -o openapi.bundled.yml"
+    "openapi:bundle": "redocly bundle openapi.yml -o openapi.bundled.yml",
+    "exp:recriar": "bash experimento/scripts/recriar-banco.sh",
+    "exp:ambiente": "node experimento/scripts/ambiente.js",
+    "exp:parar": "docker compose -f experimento/docker-compose.yml down -v"
   },
   "dependencies": {
     "cors": "^2.8.5",

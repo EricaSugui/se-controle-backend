@@ -7,3 +7,7 @@ openapi.bundled.yml
 .test-token
 .test-token-15
 .test-token-11
+
+# Experimento do TCC: resultados brutos de cada rodada ficam fora do git.
+experimento/resultados/*
+!experimento/resultados/README.md
