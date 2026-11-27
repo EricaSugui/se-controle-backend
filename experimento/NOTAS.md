@@ -257,3 +257,23 @@ testes): checkpoint de 34 Casas e 225 eventos; verificação íntegra em
 56,6 ms (código 0). Depois de alterar o primeiro evento da Casa 1 e
 recalcular todos os hashes dela (e a cabeça), a verificação acusou
 `adulterada (checkpoint)` no índice 7 (código 1).
+
+## Bloco 4: figuras e tabelas (27/11/2026)
+
+- `FIGURAS.md`, com o material para Material e Métodos e Resultados
+  Preliminares:
+  - Figura 1, arquitetura: operação → trigger → `audit.gravar_evento` →
+    A ou B, na mesma transação; checkpoint e verificador fora do banco;
+  - Figura 2, cadeia de uma Casa com hash inicial, encadeamento,
+    checkpoint e evento não protegido;
+  - Figura 3, fluxo da verificação de uma Casa;
+  - Tabela 1, modelo de evento: campo, tipo, origem, correspondência com
+    o projeto aprovado e se entra no hash;
+  - Tabela 2, o que muda entre A e B;
+  - Tabela 3, cenários de adulteração com esperado em A, esperado em B e
+    o obtido nos testes funcionais do bloco 3.
+- Diagramas em Mermaid. A exportação como imagem (SVG ou PNG) para o
+  documento fica pendente: a renderização local com o `mermaid-cli`
+  precisa de um navegador headless e não foi autorizada nesta sessão.
+- Pendente da autora até 13/12: confirmar a definição de "inconclusiva"
+  (bloco 3) antes do piloto.

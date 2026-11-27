@@ -3,7 +3,8 @@
 Código do experimento que compara a condição A (log convencional) com a
 condição B (log com hash chain e checkpoint). Plano, decisões e roteiro:
 `docs/planos/pesquisa-hashchain.md` no workspace (seções 6 e 9). As
-escolhas e os parâmetros usados ficam em [NOTAS.md](NOTAS.md).
+escolhas e os parâmetros usados ficam em [NOTAS.md](NOTAS.md), e as figuras e
+tabelas para o texto, em [FIGURAS.md](FIGURAS.md).
 
 **Nada daqui vai para PROD nem para o TCC:** o SQL do experimento não fica
 em `migrations/`, e o banco de medição é um contêiner local próprio.
