@@ -103,3 +103,63 @@ JSON com chaves fora de ordem, aninhamento, lista e nulo) dão a mesma
 serialização e o mesmo hash nos dois lados. Dois vetores têm a
 serialização esperada escrita à mão (formato congelado), e o hash é
 conferido nos dois lados com o vetor oficial `SHA-256("abc")` do NIST.
+
+## Bloco 2: condições A e B (27/11/2026)
+
+**O que foi feito**
+
+- **Triggers comuns** (`sql/30-triggers.sql`): `AFTER INSERT OR UPDATE OR
+  DELETE ... FOR EACH ROW` em `compras`, `receitas` e `parcelas`, iguais
+  nas duas condições. Eles montam o evento e chamam
+  `audit.gravar_evento`, a **única função diferente entre A e B**.
+  - A (`sql/20-condicao-a.sql`): só grava o evento.
+  - B (`sql/20-condicao-b.sql`): cria a cabeça da cadeia da Casa se
+    faltar, trava com `SELECT ... FOR UPDATE`, calcula índice e hash,
+    grava o evento e avança a cabeça.
+- **Conteúdo**: `{"antes": ..., "depois": ...}` com `to_jsonb` da linha
+  inteira (nulo do lado que não existe: `antes` no `INSERT`, `depois` no
+  `DELETE`). Hora do evento: `clock_timestamp()`.
+- **Quem registrou**: `lancado_por_id` da linha na inclusão de compras e
+  receitas (com `app.usuario_id` como reserva, porque linhas antigas têm
+  `lancado_por_id` nulo); `app.usuario_id` na inclusão de parcelas (na
+  edição, as parcelas são recriadas por quem edita), com o
+  `lancado_por_id` da compra como reserva; `app.usuario_id` em toda
+  alteração e exclusão. Sem nenhum dos dois, a operação inteira é
+  recusada.
+- **Parcelas**: não têm `casa_id`; Casa e responsável vêm da compra.
+  Achado no schema: o produto apaga compras de vez em um caso
+  (`cancelarCompra`, compra fora de acerto), e as parcelas vão junto em
+  cascata, quando a compra já não é visível. Solução: um trigger
+  `BEFORE DELETE` em `compras` guarda Casa, responsável e quem lançou
+  numa variável local da transação (`audit.compra_<id>`), consultada pelo
+  trigger da parcela.
+- **Troca de Casa** (decisão 2): um `UPDATE` que muda `casa_id` gera um
+  evento na cadeia de origem e outro na de destino, com o mesmo
+  conteúdo.
+- **Vínculo com recorrências** (decisão 9): vincular, trocar e
+  desvincular são `UPDATE` comuns, com `despesa_fixa_id` antes e depois
+  no conteúdo.
+- **Fora do escopo**: `TRUNCATE` (não dispara triggers de linha) e as
+  tabelas de recorrência. No produto, as rotas de edição e exclusão não
+  definem `app.usuario_id`; se a hash chain fosse para PROD, elas
+  precisariam da função auxiliar `comAuditoria` (decisão 1).
+
+**Testes** (`npm run exp:test`, agora em A e depois em B, cada uma com o
+banco recriado do zero): 30 testes por condição, todos passando em
+27/11/2026 (A: 27 executados e 3 exclusivos de B pulados; B: 29 e 1
+pulado). Cobrem: um evento por linha com Casa, responsável e
+registrador; `ROLLBACK` sem evento; alteração sem `app.usuario_id`
+recusada sem gravar nada; reserva do registrador na inclusão; antes e
+depois na alteração; vincular, trocar e desvincular recorrência; troca
+de Casa com dois eventos; compra apagada com parcelas em cascata na Casa
+certa; edição que recria parcelas. Só em A: eventos sem índice nem
+hash. Só em B: cadeia contínua e recalculada em Node igual à gravada,
+cabeça no último elo, Casas independentes, e **3 conexões gravando 25
+receitas cada, ao mesmo tempo, na mesma Casa**, com índices de 1 a 75
+sem repetição nem salto e a cadeia válida.
+
+**Prova rápida de adulteração** (manual, no banco B depois dos testes):
+111 eventos, todos os hashes recalculados no Postgres iguais aos
+gravados; depois de trocar o `valor_liquido` de um evento de receita
+para 9999.00, exatamente 1 hash deixou de bater. O verificador completo,
+com o checkpoint, é o bloco 3.

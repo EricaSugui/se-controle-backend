@@ -36,7 +36,7 @@
     "exp:recriar": "bash experimento/scripts/recriar-banco.sh",
     "exp:ambiente": "node experimento/scripts/ambiente.js",
     "exp:parar": "docker compose -f experimento/docker-compose.yml down -v",
-    "exp:test": "bash experimento/scripts/recriar-banco.sh b && jest -c experimento/jest.config.js --runInBand",
+    "exp:test": "bash experimento/scripts/testar.sh",
     "exp:typecheck": "tsc -p experimento/tsconfig.json"
   },
   "dependencies": {

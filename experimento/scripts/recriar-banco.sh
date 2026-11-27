@@ -10,7 +10,8 @@
 # 2. Sobe o Postgres 17 de medição (docker-compose.yml) e espera ficar pronto.
 # 3. Aplica a compatibilidade mínima com o Supabase (sql/00-*.sql).
 # 4. Aplica todas as migrations do produto (node-pg-migrate).
-# 5. Aplica o SQL do experimento: sql/1*.sql (comum) e sql/2*-condicao-<x>.sql.
+# 5. Aplica o SQL do experimento: sql/1*.sql (comum), sql/2*-condicao-<x>.sql
+#    (o que muda entre A e B) e sql/3*.sql (triggers, comuns).
 #
 # Nunca toca no Supabase local do DEV, no TCC nem em PROD: a URL é fixa em
 # 127.0.0.1:55432 e o node-pg-migrate lê uma variável própria
@@ -65,9 +66,9 @@ if [ "$CONDICAO" != "base" ]; then
   shopt -s nullglob
   comuns=("$EXP"/sql/1*.sql)
   condicao=("$EXP"/sql/2*-condicao-"$CONDICAO".sql)
+  triggers=("$EXP"/sql/3*.sql)
   shopt -u nullglob
-  [ ${#comuns[@]} -gt 0 ] || [ ${#condicao[@]} -gt 0 ] || echo "   · (nenhum ainda: blocos 1 e 2)"
-  for f in "${comuns[@]}" "${condicao[@]}"; do aplicar_sql "$f"; done
+  for f in "${comuns[@]}" "${condicao[@]}" "${triggers[@]}"; do aplicar_sql "$f"; done
 fi
 
 echo "✓ Banco de medição pronto: condição ${CONDICAO^^}, $EXPERIMENTO_DATABASE_URL"
