@@ -40,7 +40,10 @@
     "exp:typecheck": "tsc -p experimento/tsconfig.json",
     "exp:checkpoint": "ts-node --transpile-only -P experimento/tsconfig.json experimento/src/cli.ts checkpoint",
     "exp:verificar": "ts-node --transpile-only -P experimento/tsconfig.json experimento/src/cli.ts verificar",
-    "exp:figuras": "bash experimento/scripts/figuras.sh"
+    "exp:figuras": "bash experimento/scripts/figuras.sh",
+    "exp:rodada": "ts-node --transpile-only -P experimento/tsconfig.json experimento/src/rodada.ts",
+    "exp:piloto": "bash experimento/scripts/piloto.sh",
+    "exp:resumir": "ts-node --transpile-only -P experimento/tsconfig.json experimento/src/resumir.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
