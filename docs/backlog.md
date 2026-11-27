@@ -1,10 +1,29 @@
 # Backlog — se-controle-backend
 
-> Atualizado em 2026-11-18. Fonte da verdade dos pendentes; as decisões já
+> Atualizado em 2026-11-26. Fonte da verdade dos pendentes; as decisões já
 > tomadas estão em `decisoes-superficie-api.md`.
 
 ## Entregue recentemente
 
+- ✅ **Espaço pessoal (Casa Pessoal)** (#71, contrato 3.12.0, em PROD em
+  2026-11-26) — `casas.pessoal` e `dono_pessoa_id`; criado para toda
+  pessoa com login (migration `1785200000000`, `/auth/me`, vínculo e
+  aceite de convite); 409 para convites, membros, papel, custeio, edição e
+  desativação; "Pessoal" é nome reservado. Junto: `GET /casas` passou a
+  listar só as casas de que a pessoa participa (antes listava as de todas
+  as famílias). Especificação no workspace:
+  `docs/planos/casa-pessoal-nucleo.md`.
+- ✅ **Convites de casa desativada** (#70, 2026-11-26) — criar e aceitar
+  convite de casa desativada dá 409; desativar expira os pendentes. Regras
+  em `convites.md`.
+- ✅ **Status realizado das fixas** (#69, contrato 3.11.0, 2026-11-26) — o
+  status de despesas e receitas fixas traz `realizado_em`,
+  `valor_realizado` e os lançamentos vinculados (detalhe do "Já paga").
+- ✅ **Visão de caixa** (#67, contrato 3.10.0, 2026-11-26) —
+  `GET /compras/caixa?de&ate` e filtro `de`/`ate` em `GET /receitas`.
+- ✅ **CI e RLS** (#65 e migration `1785100000001`, 2026-11-25) — tsc e
+  testes em todo PR e push para develop e main; `package-lock.json`
+  versionado; RLS ligado em `onboarding_pessoas`.
 - ✅ **Projeção de saldo** (`GET /saldo-projetado`, PR #28) — evolução de
   cartoes_contas (tipo aplicacao, saldo_base, conta_debito_id), conta destino
   nos contratos com herança, PIX exige conta, compartilhamento de saldo
@@ -63,13 +82,14 @@ Pendências relacionadas, fora deste item:
 - O arquivo `back/.env` (credenciais de prod) **ainda existe** na máquina
   local por decisão de 2026-11-19. Não é mais carregado por nenhum script,
   mas deve ser removido no passo de gestão de segredos (10.10 do plano).
-- Definir como as migrations rodam em prod: pré-deploy no Railway ou
-  manual (4.7, item 5 do plano).
+- ~~Definir como as migrations rodam em prod~~ **Decidido:** manual, antes
+  do merge em `main`, depois de backup e teste de restauração (ver
+  `README.md` e `docs/ambiente/release.md` no workspace).
 - Guarda opcional `APP_ENV` (4.7, item 7 do plano).
 
-Estado das migrations conferido em 2026-11-19 (manifesto do backup do
-TCC): a última migration aplicada no **TCC** é `1785100000000` (convites
-`tipo`/`destinatario_pessoa_id`), a mesma de **prod**. Ambientes alinhados.
+Estado das migrations conferido em 2026-11-26 (dry-run antes da release
+#73): a última migration aplicada em **prod** e no **TCC** é
+`1785200000000` (Casa Pessoal). Ambientes alinhados.
 
 ## ✅ Backup e restauração (resolvido em 2026-11-19)
 
