@@ -12,7 +12,7 @@
   desativação; "Pessoal" é nome reservado. Junto: `GET /casas` passou a
   listar só as casas de que a pessoa participa (antes listava as de todas
   as famílias). Especificação no workspace:
-  `docs/planos/casa-pessoal-nucleo.md`.
+  `docs/planos/concluidos/casa-pessoal-nucleo.md`.
 - ✅ **Convites de casa desativada** (#70, 2026-11-26) — criar e aceitar
   convite de casa desativada dá 409; desativar expira os pendentes. Regras
   em `convites.md`.
