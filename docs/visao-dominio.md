@@ -1,6 +1,6 @@
 # Visão de domínio — o modelo mental do produto
 
-> Escrito em 2026-07-26 para servir de FONTE em conversas de negócio
+> Escrito em 2026-07-26 (atualizado em 2026-11-26: espaço pessoal) para servir de FONTE em conversas de negócio
 > (inclusive com IAs externas ao repositório). Descreve o que o produto É
 > hoje, em linguagem de negócio — sem detalhes de implementação. Kit
 > recomendado para pensar negócio: este documento + `tenencia.md`
@@ -18,11 +18,20 @@ mudar. Detalhes de marca e posicionamento em `tenencia.md`.
   várias casas (a própria, a dos pais que ela ajuda a custear), mas **as
   casas nunca se misturam**: gasto, relatório, acerto e dashboard são
   sempre de UMA casa. Cada casa tem seus admins e membros.
+- **Espaço pessoal** — toda pessoa com login tem um, criado
+  automaticamente: o lugar do que é só dela (salário, academia, metas
+  próprias). Por dentro é uma casa de um membro só, mas a pessoa **nunca o
+  vê como "casa"**: no app ele se chama "Pessoal" ou "seu espaço pessoal".
+  Não tem convites, outros membros nem rateio, não é renomeado nem
+  desativado, e não aparece na lista de casas. Ao lançar, a pessoa escolhe
+  onde lançar: o espaço pessoal ou uma das casas.
 - **Pessoa ≠ usuário** — pessoas existem sem login (uma filha criança, uma
   irmã que ainda não entrou no app) e podem ganhar login depois, sem perder
   o histórico. O convite é o caminho para isso: ao ser aceito, vincula a
-  conta à pessoa já existente (ver `convites.md`). Todo lançamento registra QUEM É o dono do fato (de quem é o
-  gasto) separado de QUEM registrou.
+  conta à pessoa já existente (ver `convites.md`). Ao ganhar login, a
+  pessoa ganha também o espaço pessoal. Todo lançamento registra QUEM É o
+  dono do fato (de quem é o gasto, "Quem gastou" / "Quem recebeu" no app)
+  separado de QUEM registrou.
 - **Catálogos curados** — categorias (com ícone e cor), formas de pagamento
   e origens de receita são geridos centralmente, não pelos usuários; o app
   só os consome.
@@ -101,8 +110,9 @@ Tudo abaixo é CALCULADO dos lançamentos — nunca armazenado nem editável:
    não se reescreve (por isso reajuste versiona em vez de editar).
 3. **Avisos guiam, não bloqueiam** — dado incompleto vira aviso visível,
    nunca cálculo silenciosamente errado.
-4. **A casa é soberana** — nenhuma visão mistura casas; autorização segue
-   participação e papel na casa.
+4. **A casa é soberana** — nenhuma visão mistura casas (o espaço pessoal
+   também é um contexto separado); autorização segue participação e papel
+   na casa, e cada pessoa só vê as casas de que participa.
 5. **Vocabulário de antecipação, não de culpa** — "saber antes", "enxergar
    o mês"; o dashboard é mapa, não tribunal (ver `tenencia.md`).
 

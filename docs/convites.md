@@ -38,17 +38,21 @@ Validações, na ordem em que acontecem:
 1. `email` obrigatório. É normalizado com trim e lowercase.
 2. `papel`, se informado, é `admin` ou `membro`.
 3. Com `casa_id`, o usuário precisa ser admin da casa (403).
-4. Mais de uma pessoa local com o mesmo e-mail dá **409**. Os cadastros
+4. Com `casa_id`, a casa precisa estar ativa: casa desativada dá **409**
+   ("Esta casa foi desativada e não aceita novos membros").
+5. Com `casa_id`, a casa não pode ser um espaço pessoal: **409** (o espaço
+   pessoal não tem outros membros).
+6. Mais de uma pessoa local com o mesmo e-mail dá **409**. Os cadastros
    precisam ser revisados antes.
-5. Convidar a si mesmo dá **400**.
-6. A pessoa local tem `supabase_user_id` diferente da conta encontrada no
+7. Convidar a si mesmo dá **400**.
+8. A pessoa local tem `supabase_user_id` diferente da conta encontrada no
    Auth (ou a conta não existe mais): **409**.
-7. A conta existe, mas não há `casa_id`: **400**. Conta existente só é
+9. A conta existe, mas não há `casa_id`: **400**. Conta existente só é
    convidada pela área de membros de uma casa.
-8. O e-mail aponta para uma pessoa e a conta do Auth está vinculada a outra
-   pessoa: **409**.
-9. A pessoa já participa da casa: **409**.
-10. Já existe um convite interno pendente e válido para a pessoa na casa:
+10. O e-mail aponta para uma pessoa e a conta do Auth está vinculada a outra
+    pessoa: **409**.
+11. A pessoa já participa da casa: **409**.
+12. Já existe um convite interno pendente e válido para a pessoa na casa:
     **409**.
 
 No fluxo interno, a transação também garante a pessoa destinatária:
@@ -73,7 +77,7 @@ Ao criar uma pessoa (no convite interno ou no aceite por token),
 ## Convites recebidos
 
 `GET /convites/recebidos` lista os convites pendentes e não expirados da
-pessoa autenticada, com `casa_nome` e `convidado_por_nome`. Um convite entra
+pessoa autenticada, de casas ativas, com `casa_nome` e `convidado_por_nome`. Um convite entra
 na lista quando:
 
 - `destinatario_pessoa_id` é a pessoa autenticada e o tipo é `interno`, **ou**
@@ -87,7 +91,8 @@ seguem pelo token.
 `PATCH /convites/recebidos/:id/aceitar` aplica o mesmo filtro com `FOR
 UPDATE`, insere em `casa_pessoas` com o papel do convite (padrão `membro`,
 idempotente) e marca o convite como `aceito`. Retorna 404 se o convite não
-for visível para a pessoa e 400 se ele não tiver casa.
+for visível para a pessoa, 400 se ele não tiver casa e 409 se a casa
+estiver desativada.
 
 ## Aceite por token (`PATCH /convites/token/:token/aceitar`)
 
@@ -95,7 +100,8 @@ Exige o Bearer do Supabase (não o middleware `autenticar`, porque a pessoa
 pode ainda não existir). Em uma transação:
 
 1. Convite precisa estar `pendente` e não expirado (**409**). O e-mail da
-   conta precisa bater com o do convite (**403**).
+   conta precisa bater com o do convite (**403**). Se o convite tem casa,
+   ela precisa estar ativa (**409**).
 2. Se a conta já tem pessoa e o convite aponta para outra
    (`destinatario_pessoa_id`): **409**.
 3. Se a conta ainda não tem pessoa, procura a pessoa alvo: o
@@ -106,7 +112,15 @@ pode ainda não existir). Em uma transação:
    regra de nome acima).
 5. Entra na casa, se houver `casa_id`.
 6. Marca `onboarding_pessoas.perfil = 'convidado'`.
-7. Marca o convite como `aceito` e retorna a pessoa.
+7. Marca o convite como `aceito`.
+8. Garante o espaço pessoal da pessoa (ela acabou de ter login) e retorna
+   a pessoa.
+
+## Casa desativada
+
+Desativar uma casa (`PATCH /casas/:id/desativar`) passa os convites
+pendentes dela para `expirado`. Mesmo assim, criar e aceitar convite
+conferem se a casa está ativa (acima), para cobrir convites antigos.
 
 ## Rotas administrativas
 
