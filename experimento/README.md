@@ -41,5 +41,21 @@ Banco de medição: `postgresql://postgres:experimento@127.0.0.1:55432/experimen
 | `sql/3*.sql` | Triggers de auditoria em `compras`, `parcelas` e `receitas`, iguais nas duas condições (bloco 2) |
 | `src/` | Conexão em texto bruto (`banco.ts`), serialização e hash (`serializacao.ts`), checkpoint (`checkpoint.ts`), verificador (`verificador.ts`) e linha de comando (`cli.ts`) |
 | `test/` | Testes contra o banco de medição (`npm run exp:test`) |
-| `scripts/` | Recriar o banco e registrar o ambiente |
+| `scripts/` | Recriar o banco, registrar o ambiente, rodar os testes e gerar as figuras |
+| `figuras/` | Imagens dos diagramas (PNG e SVG), geradas por `npm run exp:figuras` |
 | `resultados/` | Uma pasta por rodada (fora do git) |
+
+## Antes de levar esta branch para a `develop`
+
+A `pesquisa/hashchain` não roda a CI (o workflow só dispara em `develop` e
+`main`). Ao integrar:
+
+- **CI mais lenta por causa do `mermaid-cli`.** Ele é devDependency e, no
+  `npm ci`, o Puppeteer baixa um navegador headless (centenas de MB) a cada
+  execução. A CI não gera figuras, então basta definir
+  `PUPPETEER_SKIP_DOWNLOAD: "true"` no `env` do job em
+  `.github/workflows/ci.yml`. Quem precisar gerar figuras localmente roda o
+  `npm install` normal, que baixa o navegador.
+- **Os testes do experimento ficam fora da CI de propósito**: o
+  `jest.config.js` da raiz só olha `src/`, e `npm run exp:test` precisa do
+  Docker com o banco de medição.
