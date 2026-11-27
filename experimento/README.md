@@ -23,6 +23,7 @@ npm run exp:test -- b           # só uma condição
 npm run exp:typecheck           # confere os tipos do experimento
 npm run exp:checkpoint -- <rodada>/checkpoint.json          # condição B
 npm run exp:verificar -- <rodada>/checkpoint.json [relatorio.json]
+npm run exp:figuras             # imagens dos diagramas de FIGURAS.md em figuras/
 npm run exp:parar               # derruba o contêiner e apaga o volume
 ```
 

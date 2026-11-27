@@ -276,6 +276,11 @@ recalcular todos os hashes dela (e a cabeça), a verificação acusou
   com fundo branco e SVG) com o `mermaid-cli` 11, depois que a autora
   liberou a ferramenta (ela usa um navegador headless, que de início não
   foi autorizado). A renderização confirmou a sintaxe dos três
-  diagramas; a Figura 3 ganhou o rótulo "i ≤ N" na volta do laço.
+  diagramas; a Figura 3 ganhou o rótulo "i ≤ N" na volta do laço. Depois,
+  o `mermaid-cli` 11.17.1 virou devDependency do back, e as figuras passam
+  a ser geradas com `npm run exp:figuras`. A Figura 3 não sai idêntica byte
+  a byte entre gerações (as curvas das setas variam em décimos de pixel,
+  sem diferença visível); as imagens só são commitadas quando um
+  diagrama muda.
 - Pendente da autora até 13/12: confirmar a definição de "inconclusiva"
   (bloco 3) antes do piloto.

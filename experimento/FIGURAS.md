@@ -3,8 +3,8 @@
 Material para Material e Métodos e Resultados Preliminares (roteiro,
 bloco 4). Os diagramas estão em Mermaid, que o GitHub e o VS Code
 desenham. As imagens para o documento ficam em [figuras/](figuras/) (PNG em
-2x com fundo branco e SVG), geradas com o `mermaid-cli` 11; ao mudar um
-diagrama, gerar de novo. Os nomes de
+2x com fundo branco e SVG), geradas com `npm run exp:figuras` (`mermaid-cli`
+11); ao mudar um diagrama, gerar de novo. Os nomes de
 objetos (`audit.eventos`, `audit.gravar_evento`...) são os do código, em
 `sql/` e `src/`.
 
