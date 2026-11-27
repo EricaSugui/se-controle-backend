@@ -163,3 +163,22 @@ sem repetição nem salto e a cadeia válida.
 gravados; depois de trocar o `valor_liquido` de um evento de receita
 para 9999.00, exatamente 1 hash deixou de bater. O verificador completo,
 com o checkpoint, é o bloco 3.
+
+## Requisitos para o gerador de dados sintéticos (anotado em 27/11/2026)
+
+Levantados ao conferir a rota de edição de compras do produto
+(`PUT /compras/:id`, `src/routes/compras.ts`):
+
+- **A edição de compra recria as parcelas.** A compra é atualizada no
+  lugar (`UPDATE`, mesmo `id` e mesmo `lancado_por_id`), mas as parcelas
+  são **sempre** apagadas e recriadas, em qualquer edição: compra à
+  vista (1 parcela), parcelada e até quando só a descrição muda. Uma
+  edição de compra com N parcelas gera **1 + 2N eventos** (1 `UPDATE` da
+  compra, N `DELETE` e N `INSERT` de parcelas). O gerador deve reproduzir
+  esse padrão; gerar só o `UPDATE` da compra subestimaria o volume do log,
+  o armazenamento e a latência das edições.
+- **O rastro do valor de uma parcela não segue um único `entidade_id`.**
+  As parcelas recriadas ganham `id` novos, então o histórico do valor se
+  reconstitui pelo `compra_id` no conteúdo do evento. Levar isso em conta
+  ao montar os cenários de adulteração de valor (escolher o evento-alvo e
+  descrever o resultado esperado).
