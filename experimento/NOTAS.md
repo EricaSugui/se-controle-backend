@@ -272,8 +272,10 @@ recalcular todos os hashes dela (e a cabeça), a verificação acusou
   - Tabela 2, o que muda entre A e B;
   - Tabela 3, cenários de adulteração com esperado em A, esperado em B e
     o obtido nos testes funcionais do bloco 3.
-- Diagramas em Mermaid. A exportação como imagem (SVG ou PNG) para o
-  documento fica pendente: a renderização local com o `mermaid-cli`
-  precisa de um navegador headless e não foi autorizada nesta sessão.
+- Diagramas em Mermaid, exportados em 27/11 para `figuras/` (PNG em 2x
+  com fundo branco e SVG) com o `mermaid-cli` 11, depois que a autora
+  liberou a ferramenta (ela usa um navegador headless, que de início não
+  foi autorizado). A renderização confirmou a sintaxe dos três
+  diagramas; a Figura 3 ganhou o rótulo "i ≤ N" na volta do laço.
 - Pendente da autora até 13/12: confirmar a definição de "inconclusiva"
   (bloco 3) antes do piloto.

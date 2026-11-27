@@ -2,7 +2,9 @@
 
 Material para Material e Métodos e Resultados Preliminares (roteiro,
 bloco 4). Os diagramas estão em Mermaid, que o GitHub e o VS Code
-desenham; para o documento final, exportar como imagem. Os nomes de
+desenham. As imagens para o documento ficam em [figuras/](figuras/) (PNG em
+2x com fundo branco e SVG), geradas com o `mermaid-cli` 11; ao mudar um
+diagrama, gerar de novo. Os nomes de
 objetos (`audit.eventos`, `audit.gravar_evento`...) são os do código, em
 `sql/` e `src/`.
 
@@ -85,7 +87,8 @@ flowchart TD
     seq -- "não: sequência" --> adul
     enc -- sim --> hsh
     enc -- "não: encadeamento" --> adul
-    hsh -- sim --> prox --> seq
+    hsh -- sim --> prox
+    prox -- "i ≤ N" --> seq
     hsh -- "não: hash" --> adul
     hsh -- "erro ao serializar" --> inc
     prox -- "i > N" --> qtd
